@@ -1,0 +1,17 @@
+# 排除环境变量和密钥
+.env
+
+# 排除 Python 缓存
+__pycache__/
+*.pyc
+venv/
+
+# 排除运行时的临时文件
+sandbox_runs/
+sas_plan
+tests/regression_registry.json
+tests/generated_problem.pddl
+
+# 排除 IDE 配置
+.vscode/
+.idea/
