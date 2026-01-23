@@ -65,35 +65,7 @@ class MoveSkill(BaseSkill):
         except Exception as e:
             return SkillResult(False, f"Move Error: {str(e)}")
 
-class CreateFileSkill(BaseSkill):
-    @property
-    def name(self):
-        return "create_file"
-    
-    def execute(self, args: List[str]) -> SkillResult:
-        file_sym, folder = args[0], args[1]
-        target_path = self._safe_path(folder, file_sym)
-        try:
-            with open(target_path, 'w') as f:
-                f.write("AIOS Generated Content")
-            return SkillResult(
-                is_success=True,
-                message=f"Created {file_sym}",
-                add_facts=[f"(at {file_sym} {folder})", f"(is_created {file_sym})"]
-            )
-        except Exception as e:
-            return SkillResult(False, str(e))
 
-class CreateFolderSkill(BaseSkill):
-    @property
-    def name(self): return "create_folder"
-    def execute(self, args: List[str]) -> SkillResult:
-        folder, parent = args[0], args[1]
-        target_path = self._safe_path(parent, folder)
-        try:
-            os.makedirs(target_path, exist_ok=True)
-            return SkillResult(True, f"Folder {folder} created", [f"(at {folder} {parent})", f"(is_created {folder})"])
-        except Exception as e: return SkillResult(False, str(e))
 
 class GetAdminSkill(BaseSkill):
     @property

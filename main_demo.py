@@ -141,9 +141,9 @@ if __name__ == "__main__":
     
     kernel = AIOSKernel(translator, planner, executor)
 
-    kernel.run("把root下的txt文件移动到backup文件夹下")
+    #kernel.run("把root下的txt文件移动到backup文件夹下")
     #kernel.run("把backup下的txt文件移动到root文件夹下")
     #kernel.run("删除 root 下的 txt 文件")
-    #kernel.run("请将 root 目录下的 file_dot_txt 复制到 backup 目录，然后在 backup 目录下将其压缩为一个名为 compressed_dot_zip 的存档文件。")
-    #kernel.run("帮我在backup目录里创建一个bad文件夹，然后创建一个good.txt文件放在里面，然后再把root里面的txt文件移动到bad文件夹里"sk-6bedd9ffb3fb45f6b69762f89241789b"")
+    kernel.run("重命名root下的txt文件为new.txt")
+    #kernel.run("帮我在backup目录里创建一个bad文件夹，然后创建一个good.txt文件放在里面，然后再把root里面的txt文件移动到bad文件夹里")
     #python3 main_demo.py

@@ -20,7 +20,6 @@
     :parameters (?d - folder)
     :effect (and 
         (scanned ?d)
-        ;;(increase (total-cost) 5)
     )
   )
 
@@ -55,15 +54,6 @@
     )
   )
 
-  (:action create_file
-    :parameters (?f - file ?d - folder)
-    :precondition (and (has_admin_rights) (not (at ?f ?d))(not (is_created ?f))) 
-    :effect (and 
-        (is_created ?f) 
-        (at ?f ?d)
-        (increase (total-cost) 10)
-    )
-  )
   ;; --- AI Generated Action ---
 (:action remove_file
    :parameters (?f - file ?d - folder)
@@ -71,4 +61,7 @@
    :effect (and (not (at ?f ?d))))
    
 
+
+  ;; --- AI Generated Action ---
+(:action rename_file :parameters (?old_file - file ?new_file - file ?folder - folder) :precondition (and (at ?old_file ?folder) (scanned ?folder) (has_admin_rights)) :effect (and (at ?new_file ?folder) (not (at ?old_file ?folder)) (is_created ?new_file)))
 )

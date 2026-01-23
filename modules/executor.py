@@ -17,8 +17,6 @@ class ActionExecutor:
         from .skills import filesystem
         self._register(filesystem.ScanSkill())
         self._register(filesystem.MoveSkill())
-        self._register(filesystem.CreateFileSkill())
-        self._register(filesystem.CreateFolderSkill())
         self._register(filesystem.GetAdminSkill())
         self._register(filesystem.CompressSkill())
 

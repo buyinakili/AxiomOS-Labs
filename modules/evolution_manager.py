@@ -17,33 +17,33 @@ class EvolutionManager:
         self.max_retries = max_retries
         self.history_errors = [] # 记录重试过程中的错误日志
 
-    def run_evolution_loop(self, user_goal, sandbox_manager, task_data,llm_client):
-        """
-        核心进化循环：失败 -> 反思 -> 修复 -> 再尝试
-        """
+    def run_evolution_loop(self, user_goal, sandbox_manager, task_data, llm_client):
         print(f"\n[Evolution] 启动进化任务: {user_goal}")
         current_error_context = "这是第一次尝试，请根据任务创建缺失的 PDDL Action 和 Python 技能。"
         
         for attempt in range(1, self.max_retries + 1):
             print(f"\n{'-'*20} 尝试次数: {attempt}/{self.max_retries} {'-'*20}")
             
+            # --- 统一且唯一的重置逻辑 ---
             if attempt > 1:
-                print("[Evolution] 正在为新一轮尝试重置物理沙盒状态...")
-                if os.path.exists(sandbox_manager.storage_path):
-                    shutil.rmtree(sandbox_manager.storage_path)
-                os.makedirs(os.path.join(sandbox_manager.storage_path, "root"), exist_ok=True)
-                os.makedirs(os.path.join(sandbox_manager.storage_path, "backup"), exist_ok=True)
-
+                print("[Evolution] 正在重置物理沙盒并重新同步...")
+                sandbox_manager.reset_jail_storage() 
+                
+                # 核心点：强制清空执行器状态
+                self.executor.execution_history = []
+                
+                # 只允许基础技能参与 setup
+                base_skills = ["scan", "move", "get_admin", "remove_file", "compress"]
                 for skill in self.executor.skills.values():
-                    skill.base_path = sandbox_manager.storage_path
+                    skill.base_path = os.path.abspath(sandbox_manager.storage_path)
                 
                 for action in task_data.get('setup_actions', []):
-                    # 使用 self.executor 确保状态一致
-                    self.executor.execute_step(" ".join(action))
+                    if action[0] in base_skills:
+                        self.executor.execute_step(" ".join(action))
                 
-                # 关键：环境准备好了，现在清空历史，准备记录“进化的关键动作”
+                # 重置完成后再次清空历史，确保审计只记录验证阶段
                 self.executor.execution_history = [] 
-                print("[Evolution] 沙盒物理环境已重置。")
+                print("[Evolution] 沙盒环境重置完毕。")
                 
             
             try:
@@ -227,10 +227,18 @@ Analysis: The generated code caused a Python exception. Fix syntax or library us
 
 任务：根据目标输出 PDDL Action 补丁和 Python 技能类 (GeneratedSkill) 的 JSON。
 
-[核心约束 - 逻辑与物理对齐]:
+[核心约束 ]:
 1. 逻辑守恒：del_facts 仅允许用于物理消失或位移（如 remove/move）。copy 等操作严禁删除源事实。
 2. 闭环性：PDDL 的 :effect 必须与 Python 的 SkillResult 严格一致。
 3. 强制优先级：新 Action 的 :effect 必须包含 (is_created ?new_file)，以确保 Planner 优先使用它而非 create+remove 组合。
+4. 类型继承：观察 PDDL Problem 中的目标 (:goal (predicate ?obj1 ...))。
+   生成的 Action 参数类型必须与 ?obj1 在 :objects 中定义的类型完全一致或为其父类。
+   - 严禁自创如 'name', 'target', 'filename' 等临时类型。
+   - 如果目标对象是 - file，参数就写 - file；是 - folder，就写 - folder。
+5. 谓词守恒：生成的 Action :effect 必须能够闭环 (:goal) 中的谓词。
+   - 如果目标要求 (at A B)，你的 Effect 必须产出 (at ?param_a ?param_b)，不能只产出 (is_created ?param_a)。
+6. Python 代码的 args 顺序必须与 PDDL :parameters 顺序严格一一对应。
+7.对象声明：所有出现在 :goal 中的实体必须在 :objects 区块中显式声明其类型。
 
 [代码规范]:
 1. 路径处理：必须使用 `self._safe_path(folder, filename)` 获取物理路径，严禁手动 replace。

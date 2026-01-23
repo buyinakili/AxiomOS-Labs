@@ -18,6 +18,7 @@ class PDDLTranslator:
                     "7.凡是在 (:init) 中出现的所有对象（如 test_file_dot_txt），必须在 (:objects) 中声明其类型。"
                     "8.避免关键字：严禁出现exists"
                     "9.注意：如果用户的目标是‘移动’（move/transfer），你生成的 PDDL Goal 必须同时满足两个条件：1. 文件到达目标位置；2. 文件不再处于原始位置。如果当前事实显示文件在目标位置已存在，但原位置依然存在该文件，这不叫完成，请继续生成 PDDL 调用 remove_file 清理原位置。"
+                    "10.如果是“创建”任务，必须要在目标中包含创建完目标创建文件应在的位置，防止planner随便找个地方创建"
                 ]
             },
             "network_operation": {

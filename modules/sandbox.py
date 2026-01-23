@@ -11,6 +11,18 @@ class SandboxManager:
         self.current_sandbox_path = None
         self.storage_path = None
 
+    def reset_jail_storage(self):
+        """回滚专用：彻底重新同步镜像"""
+        src_storage = os.path.join(self.project_root, "storage")
+        if os.path.exists(self.storage_path):
+            shutil.rmtree(self.storage_path)
+        
+        # 重新镜像，确保 file.txt 回来
+        if os.path.exists(src_storage):
+            shutil.copytree(src_storage, self.storage_path)
+        else:
+            os.makedirs(self.storage_path, exist_ok=True)
+
     def create_sandbox(self):
         """
         创建沙盒：复制必要的配置和数据，但不复制整个项目源码（保持轻量）
@@ -34,6 +46,11 @@ class SandboxManager:
         # 这样 AI 删减文件只会在这个目录下发生
         src_storage = os.path.join(self.project_root, "storage")
         dst_storage = os.path.join(sandbox_dir, "storage_jail")
+        
+        print(f"DEBUG: 宿主机 storage 绝对路径: {os.path.abspath(src_storage)}")
+        if os.path.exists(src_storage):
+            print(f"DEBUG: 宿主机 storage 内包含的文件: {os.listdir(src_storage)}")
+        
         if os.path.exists(src_storage):
             shutil.copytree(src_storage, dst_storage)
             print(f"[Sandbox] 已镜像物理文件系统 (Jail)")

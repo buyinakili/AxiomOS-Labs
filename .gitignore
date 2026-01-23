@@ -15,3 +15,5 @@ tests/generated_problem.pddl
 # 排除 IDE 配置
 .vscode/
 .idea/
+
+SaveAIOS

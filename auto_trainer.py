@@ -13,8 +13,7 @@ from modules.planner import LAMAPlanner
 from modules.curriculum_manager import CurriculumManager
 # === 新增 Import ===
 from modules.regression_manager import RegressionManager 
-from config import DEEPSEEK_API_KEY, DEEPSEEK_BASE_URL, PROJECT_ROOT
-
+from config import DEEPSEEK_API_KEY, DEEPSEEK_BASE_URL, PROJECT_ROOT, DOWNWARD_PATH
 # 使用 config 中的配置
 CLIENT = OpenAI(api_key=DEEPSEEK_API_KEY, base_url=DEEPSEEK_BASE_URL)
 """
@@ -93,7 +92,7 @@ def start_auto_training():
             continue
 
         goal = task_data['goal']
-        setup_actions = task_data.get('setup_actions', [])
+        setup_actions = []
         
         time.sleep(1.5)
 
