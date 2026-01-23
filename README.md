@@ -18,10 +18,15 @@
 这张图是我架构目前的流程示意图
 ### 文件结构图 (Project Structure)
 AIOS/
+
 ├── modules/          # 核心逻辑与技能库
+
 ├── tests/            # PDDL 领域与问题定义
+
 ├── storage/          # 模拟物理文件系统
+
 ├── auto_trainer.py   # 演化/沙盒模式入口
+
 └── main_demo.py      # 内核运行入口
 
 ## 📺 演示视频 (Demo)
