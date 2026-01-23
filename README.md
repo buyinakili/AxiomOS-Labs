@@ -30,8 +30,12 @@ AIOS/
 └── main_demo.py      # 内核运行入口
 
 ## 📺 演示视频 (Demo)
-（这里贴上b站分享链接）
+【一个融合了LLM与PDDL规划的沙盒审计自演进智能体AIOS架构】
+
+https://www.bilibili.com/video/BV1RMzuBjEym/?share_source=copy_web&vd_source=a2c7eebd10946ecc96e9cc3ad330438d
+
 这支视频演示了该架构从只有简单功能到运行一次沙盒模式后学会了两个新功能并测试通过的全流程
+
 并且还有对于如上架构图的详细解析
 
 ## 快速开始 (Quick Start)
