@@ -13,6 +13,8 @@
 
 ### 🛡️ 物理沙盒与审计系统(Physical sandbox and audit system)
 内置严格的 ExecutionAuditor，确保 LLM 生成的技能在注入前通过语法和逻辑双重验证，防止虚假进化（False Evolution）并保护宿主系统安全。
+
+💡 想了解本项目与 MCP 或其他 Agent 架构的本质区别？请移步 FAQ.md 查看深度对线记录。
 ## 🏗️ 架构设计 (Architecture)
 ![3C1E0CCB4EAD607926BD901063CABD0A](https://github.com/user-attachments/assets/195e37c3-864a-43e2-9aa8-592457b6a9f7)
 这张图是我架构目前的流程示意图
