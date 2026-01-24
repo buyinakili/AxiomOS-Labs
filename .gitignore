@@ -17,3 +17,5 @@ tests/generated_problem.pddl
 .idea/
 
 SaveAIOS
+train_env_v1.py
+update_system.py
