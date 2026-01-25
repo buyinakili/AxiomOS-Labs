@@ -1,21 +1,67 @@
 # 排除环境变量和密钥
 .env
+.env.local
+.env.*.local
 
 # 排除 Python 缓存
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+.Python
 venv/
+env/
+ENV/
 
 # 排除运行时的临时文件
 sandbox_runs/
+.temp/
 sas_plan
 tests/regression_registry.json
 tests/generated_problem.pddl
+test_results_*.json
 
 # 排除 IDE 配置
 .vscode/
 .idea/
+*.swp
+*.swo
+*~
 
-SaveAIOS
-train_env_v1.py
+# 排除重构文档和临时文件
+重构.txt
+重构完成报告.md
+重构总结.md
+测试报告.md
+
+# 排除个人测试脚本
+test_*.py
+
+# 排除旧版本备份
+SaveAIOS/
+
+# 排除系统更新脚本
 update_system.py
+train_env_v1.py
+
+# 排除日志文件
+*.log
+logs/
+
+# 排除大型数据文件
+*.db
+*.sqlite
+*.h5
+*.pkl
+*.zip
+*.tar.gz
+*.7z
+
+# 排除 macOS 系统文件
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db

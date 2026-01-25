@@ -143,3 +143,4 @@ class RegressionManager:
             print(f"\n[Regression] 警告：新能力导致回归测试失败，拒绝合并。")
             
         return all_passed
+    

@@ -9,16 +9,18 @@ class PDDLTranslator:
             "file_management": {
                 "domain_file": "tests/domain.pddl",
                 "rules": [
-                    "1. 文件名点号转义：所有的 '.' 必须替换为 '_dot_' ",
-                    "2. 路径连通性：必须在 (:init) 中定义文件夹双向连接，如 (connected root backup) (connected backup root)。",
-                    "3. 实体补全：(:objects) 必须包含所有在目标中出现的 file 和 folder。",
-                    "4. 扫描优先：若不知文件确切信息（如位置，名称），目标必须仅包含 (scanned 文件夹)。",
-                    "5. 若任务开始时已知文件位置，必须在init中写明"
-                    "6. [严禁行为] 严禁在目标中对不存在于 (:init) 中的文件使用 at 谓词，除非该任务是 create_file。",
-                    "7.凡是在 (:init) 中出现的所有对象（如 test_file_dot_txt），必须在 (:objects) 中声明其类型。"
-                    "8.避免关键字：严禁出现exists"
-                    "9.注意：如果用户的目标是‘移动’（move/transfer），你生成的 PDDL Goal 必须同时满足两个条件：1. 文件到达目标位置；2. 文件不再处于原始位置。如果当前事实显示文件在目标位置已存在，但原位置依然存在该文件，这不叫完成，请继续生成 PDDL 调用 remove_file 清理原位置。"
-                    "10.如果是“创建”任务，必须要在目标中包含创建完目标创建文件应在的位置，防止planner随便找个地方创建"
+                    "1. 文件名转义：所有的 '.' 必须替换为 '_dot_'（如 test.txt → test_dot_txt）",
+                    "2. 路径连通性：必须在 (:init) 中定义文件夹双向连接（如 (connected root backup) (connected backup root)）",
+                    "3. 实体声明：(:objects) 必须包含所有在 init 和 goal 中出现的 file 和 folder，并声明类型",
+                    "4. 对象命名规则：",
+                    "   - 【完整文件名】：用户明确说了带扩展名的文件（如'移动 test.txt'），可以在 init 中添加 (at test_dot_txt folder)",
+                    "   - 【模糊描述】：用户只说了类型或泛指（如'txt文件'、'某个文件'），不能猜测对象名，必须将目标设为 (scanned folder)，且 init 中不能有任何文件对象",
+                    "5. 扫描规则：",
+                    "   - 如果不知道文件的完整名称，目标必须**仅包含** (scanned folder)，不能包含其他谓词",
+                    "   - init 中不能预先设置 (scanned ...) 谓词",
+                    "6. 严禁幻觉：严禁在 init 或 goal 中使用已知事实未提到的文件对象",
+                    "7. 移动任务：目标必须同时满足：(1) 文件到达目标位置，(2) 文件不在原位置",
+                    "8. 创建任务：目标中必须包含文件的目标位置，防止规划器随意选择位置"
                 ]
             },
             "network_operation": {
@@ -58,32 +60,27 @@ class PDDLTranslator:
         rules_str = "\n".join([f"{i+1}. {rule}" for i, rule in enumerate(expert['rules'])])
         prompt = f"""
 你现在是 AIOS 的 [{domain_choice}] 逻辑专家。
-任务：根据“已知事实”将用户目标转化为 PDDL Problem。
+任务：根据"已知事实"将用户目标转化为 PDDL Problem。
 
-[核心原则 - 严禁幻觉]:
-1. 仅能使用“已知事实”中明确提到的对象、位置和状态。
-2. 如果“已知事实”中没有提到具体信息，你绝对不能猜测信息，优先将目标设置为获取信息的操作。
-3. 必须在 (:init) 中包含 (= (total-cost) 0)。
-4. 必须在 PDDL 末尾添加 (:metric minimize (total-cost)) 以追求最优路径。
-5. 如果内存事实为空，请根据指令内容提取可能存在的初始状态,但不要违反原则2。
-6.避免关键字：严禁出现exists
-例如用户说“移动floder的 A”，你可以合理推断初始状态为 (at A floder)。
+[通用 PDDL 生成原则]:
+1. 严禁幻觉：仅能使用"已知事实"中明确提到的对象、位置和状态。
+2. 信息缺失处理：如果"已知事实"中没有提到具体信息，你绝对不能猜测，必须将目标设置为获取信息的操作（如 scan）。
+3. 成本初始化：必须在 (:init) 中包含 (= (total-cost) 0)。
+4. 优化目标：必须在 PDDL 末尾添加 (:metric minimize (total-cost))。
+5. 禁用关键字：严禁在 PDDL 中使用 exists、forall 等高级特性。
+6. 完成检测：如果"已知事实"已经完全满足了"用户最终目标"，请不要输出 PDDL，直接输出: GOAL_FINISHED_ALREADY
 
-
-[特殊指令]:
-如果“已知事实”已经完全满足了“用户最终目标”，请不要输出 PDDL，只需直接输出字符串: GOAL_FINISHED_ALREADY
-
-[领域逻辑规则]:
+[领域专家规则]:
 {rules_str}
 
 [Domain 定义]:
 {domain_content}
 
-[上下文事实与目标]:
+[当前状态与目标]:
 {memory_context}
 
 [输出要求]:
- 仅输出 PDDL 代码 或 GOAL_FINISHED_ALREADY。
+仅输出 PDDL Problem 代码 或 GOAL_FINISHED_ALREADY，不要有任何其他解释。
 """
         response = self.client.chat.completions.create(
             model=self.model_name,
