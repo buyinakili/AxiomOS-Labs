@@ -8,8 +8,7 @@
 - 修复了沙盒模式中domain读取问题
 - **已知问题**：沙盒模式学习出的能力可能在运行模式失败（明天会修复）
 
-## � V2.0 重构计划：迈向 Neuro-Symbolic 逻辑对齐 (In Progress)
-
+##重构计划：迈向 Neuro-Symbolic 逻辑对齐 (In Progress)
 经过一阶段的探索，我决定对本项目进行底层架构级的重构，将重心从"简单的 LLM 任务执行"转向"基于符号规划的高纯度逻辑数据合成"。
 
 ### 核心架构：三层验证工厂 (Triple-Layer Validation Factory)
