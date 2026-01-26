@@ -81,7 +81,7 @@ class RegressionManager:
                 shutil.rmtree(reg_sm.storage_path)
             
             # 重新执行镜像逻辑，确保 root, backup 等基础文件夹和初始文件存在
-            src_storage = os.path.join(self.project_root, "storage")
+            src_storage = os.path.join(self.project_root, "workspace")
             if os.path.exists(src_storage):
                 shutil.copytree(src_storage, reg_sm.storage_path)
             else:

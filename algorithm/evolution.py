@@ -68,7 +68,7 @@ class EvolutionAlgorithm:
                 print("[Evolution] 正在重置物理沙盒并重新同步...")
                 sandbox_manager.reset_jail_storage()
 
-                # 清空执行历史
+                # 清空执行历史（重置环境后）
                 self.executor.clear_execution_history()
 
                 # 重置所有技能的base_path
@@ -80,8 +80,8 @@ class EvolutionAlgorithm:
                     if action[0] in base_skills:
                         self.executor.execute(" ".join(action))
 
-                # 重置完成后再次清空历史，确保审计只记录验证阶段
-                self.executor.clear_execution_history()
+                # 注意：这里不清空历史，让翻译器能看到setup动作（特别是scan）
+                # 审计时会通过history_before_validation来区分setup动作和验证动作
                 print("[Evolution] 沙盒环境重置完毕。")
 
             try:
@@ -138,7 +138,8 @@ class EvolutionAlgorithm:
 
                 # 5. 全流程沙盒集成验证
                 print("[Evolution] 正在启动全流程集成验证...")
-                self.executor.clear_execution_history()
+                # 记录当前历史长度作为审计基准（不清空历史，让翻译器能看到完整执行历史）
+                history_before_validation = len(self.executor.get_execution_history())
 
                 # 创建测试内核（沙盒模式）
                 from algorithm.kernel import AIOSKernel
@@ -156,42 +157,23 @@ class EvolutionAlgorithm:
                 # 设置problem路径（用于调试）
                 test_kernel.prob_path = f"{sandbox_manager.get_sandbox_path()}/sandbox_problem.pddl"
 
-                # 同步沙盒物理状态
-                print(f"[Evolution] 正在从物理沙盒同步真实环境状态...")
-                test_kernel.memory_facts.clear()
-
-                import os
-                sandbox_root = f"{sandbox_manager.get_storage_path()}/root"
-                if os.path.exists(sandbox_root):
-                    for f_name in os.listdir(sandbox_root):
-                        if f_name.startswith("."):
-                            continue
-
-                        safe_name = f_name.replace(".", "_dot_")
-
-                        if os.path.isfile(os.path.join(sandbox_root, f_name)):
-                            real_fact = f"(at {safe_name} root)"
-                            test_kernel.memory_facts.add(real_fact)
-                            print(f"  -> 捕获事实: {real_fact}")
-                        elif os.path.isdir(os.path.join(sandbox_root, f_name)):
-                            test_kernel.memory_facts.add(f"(connected root {safe_name})")
-                            test_kernel.memory_facts.add(f"(connected {safe_name} root)")
-
                 # 设置所有技能的base_path
                 self.executor.set_storage_path(sandbox_manager.get_storage_path())
 
                 # 运行内核
                 kernel_success = test_kernel.run(user_goal)
 
-                # 虚假进化审计
+                # 虚假进化审计（只检查验证阶段新增的动作）
                 target_action = evolution_data.get('action_name', '').lower()
-                actual_called_actions = [h.lower() for h in self.executor.get_execution_history()]
+                all_called_actions = [h.lower() for h in self.executor.get_execution_history()]
+                validation_called_actions = all_called_actions[history_before_validation:]  # 只取验证阶段动作
 
                 print(f"[Audit] 目标技能: {target_action}")
-                print(f"[Audit] 实际调用历史: {actual_called_actions}")
+                print(f"[Audit] 完整调用历史: {all_called_actions}")
+                print(f"[Audit] 验证阶段调用历史: {validation_called_actions}")
 
-                has_actually_worked = len(actual_called_actions) > 0
-                is_genuine_evolution = target_action in actual_called_actions
+                has_actually_worked = len(validation_called_actions) > 0
+                is_genuine_evolution = target_action in validation_called_actions
 
                 if kernel_success and has_actually_worked and is_genuine_evolution:
                     print(f"进化成功！新技能 '{target_action}' 已实际投入运行。")
@@ -205,7 +187,7 @@ class EvolutionAlgorithm:
                 else:
                     # 审计拒绝
                     if kernel_success and not is_genuine_evolution:
-                        current_error_context = f"审计拒绝：虽然任务成功，但你并未调用新技能 '{target_action}'。系统检测到你使用了旧技能组合 {actual_called_actions}。请为新技能设置更低的 (total-cost) 或在 PDDL 中增加必不可少的前提条件，迫使 Planner 选用它。"
+                        current_error_context = f"审计拒绝：虽然任务成功，但你并未调用新技能 '{target_action}'。系统检测到你使用了旧技能组合 {validation_called_actions}。请为新技能设置更低的 (total-cost) 或在 PDDL 中增加必不可少的前提条件，迫使 Planner 选用它。"
                         print(f"[Evolution] \033[91m验证失败：虚假进化被拦截。\033[0m")
                     else:
                         current_error_context = "系统检测到你没有调用任何 Action 就报告了任务完成。在进化模式下，你必须通过编写和使用新技能来达成目标。"

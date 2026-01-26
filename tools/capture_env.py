@@ -1,7 +1,7 @@
 import os
 import json
 
-def capture_to_setup_actions(storage_path="./storage"):
+def capture_to_setup_actions(storage_path="./workspace"):
     """
     扫描当前的 storage 目录，将其转化为 RegressionManager 可用的 setup_actions 列表
     """

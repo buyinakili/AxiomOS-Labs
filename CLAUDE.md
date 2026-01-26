@@ -98,7 +98,7 @@ AIOS/
 │   ├── domain.pddl                 # 主Domain定义
 │   └── regression_registry.json    # 回归测试用例库
 │
-├── storage/                        # 物理存储
+├── workspace/                      # 物理存储
 │   ├── root/                       # 模拟根目录
 │   └── backup/                     # 模拟备份目录
 │

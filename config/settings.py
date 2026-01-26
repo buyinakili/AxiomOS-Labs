@@ -46,7 +46,7 @@ class Settings:
 
         # 构建路径
         tests_path = os.path.join(project_root, "tests")
-        storage_path = os.path.join(project_root, "storage")
+        storage_path = os.path.join(project_root, "workspace")
         sandbox_runs_path = os.path.join(project_root, "sandbox_runs")
         skills_path = os.path.join(project_root, "infrastructure", "skills")
         temp_dir = os.path.join(project_root, ".temp")

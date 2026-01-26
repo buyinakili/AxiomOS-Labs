@@ -13,7 +13,7 @@ class SandboxManager:
 
     def reset_jail_storage(self):
         """回滚专用：彻底重新同步镜像"""
-        src_storage = os.path.join(self.project_root, "storage")
+        src_storage = os.path.join(self.project_root, "workspace")
         if os.path.exists(self.storage_path):
             shutil.rmtree(self.storage_path)
         
@@ -44,7 +44,7 @@ class SandboxManager:
 
         # 3. 创建沙盒专用的存储空间 (Storage)
         # 这样 AI 删减文件只会在这个目录下发生
-        src_storage = os.path.join(self.project_root, "storage")
+        src_storage = os.path.join(self.project_root, "workspace")
         dst_storage = os.path.join(sandbox_dir, "storage_jail")
         
         print(f"DEBUG: 宿主机 storage 绝对路径: {os.path.abspath(src_storage)}")

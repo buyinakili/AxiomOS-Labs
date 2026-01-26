@@ -14,6 +14,6 @@ DOWNWARD_PATH = os.getenv("DOWNWARD_PATH", "fast-downward.py")
 
 # 路径常量
 PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
-STORAGE_PATH = os.path.join(PROJECT_ROOT, "storage")
+STORAGE_PATH = os.path.join(PROJECT_ROOT, "workspace")
 TESTS_PATH = os.path.join(PROJECT_ROOT, "tests")
 DOMAIN_PDDL_PATH = os.path.join(TESTS_PATH, "domain.pddl")

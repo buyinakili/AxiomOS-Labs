@@ -14,7 +14,7 @@ class SkillResult:
 
 class BaseSkill(ABC):
     def __init__(self):
-        self.base_path = os.path.abspath("./storage")
+        self.base_path = os.path.abspath("./workspace")
 
     @property
     @abstractmethod
