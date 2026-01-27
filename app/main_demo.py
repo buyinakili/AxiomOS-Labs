@@ -1,4 +1,4 @@
-"""AIOS生产模式入口"""
+"""AxiomLabs生产模式入口"""
 import sys
 import os
 
@@ -6,13 +6,13 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from config.settings import Settings
-from app.factory import AIOSFactory
+from app.factory import AxiomLabsFactory
 
 
 def main():
     """主函数"""
     print("="*80)
-    print("AIOS - 自演化智能操作系统")
+    print("AxiomLabs - 自演化智能操作系统")
     print("生产模式")
     print("="*80 + "\n")
 
@@ -24,7 +24,7 @@ def main():
     print(f"  - LLM模型: {config.llm_model}\n")
 
     # 2. 创建系统
-    kernel = AIOSFactory.create_kernel(config)
+    kernel = AxiomLabsFactory.create_kernel(config)
 
     # 3. 运行任务
     # 可以从命令行参数获取目标，或使用默认目标

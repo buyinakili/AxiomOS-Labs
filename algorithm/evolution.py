@@ -142,9 +142,9 @@ class EvolutionAlgorithm:
                 history_before_validation = len(self.executor.get_execution_history())
 
                 # 创建测试内核（沙盒模式）
-                from algorithm.kernel import AIOSKernel
+                from algorithm.kernel import AxiomLabsKernel
 
-                test_kernel = AIOSKernel(
+                test_kernel = AxiomLabsKernel(
                     translator=translator,
                     planner=self.planner,
                     executor=self.executor,
@@ -218,7 +218,7 @@ Analysis: The generated code caused a Python exception. Fix syntax or library us
     def _get_system_context(self):
         """获取系统规范"""
         return """
-### AIOS 开发规范 (System Rules) ###
+### AxiomLabs 开发规范 (System Rules) ###
 1. 技能基类定义:
 class BaseSkill:
     def _safe_path(self, *parts): # 自动处理 _dot_ 并返回绝对路径
@@ -239,7 +239,7 @@ ExecutionResult(success, message, add_facts=[], del_facts=[])
             current_domain = f.read()
 
         prompt = f"""
-你现在是 AIOS 核心进化模块。
+你现在是 AxiomLabs 核心进化模块。
 {system_context}
 目标: {goal}
 错误反馈: {error_context}

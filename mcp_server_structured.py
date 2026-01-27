@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-AIOS-PDDL MCP 服务器 (结构化返回版)
+AxiomLabs MCP 服务器 (结构化返回版)
 
 所有Tool返回结果都包含metadata字典，其中包含pddl_delta字段。
 格式严格化，便于PDDL规划系统处理。
@@ -25,11 +25,11 @@ logging.basicConfig(
     format='%(name)s - %(levelname)s - %(message)s',
     stream=sys.stderr
 )
-logger = logging.getLogger("aios_mcp_server")
+logger = logging.getLogger("AxiomLabs_mcp_server")
 
 
 # 创建服务器实例
-server = Server("aios-pddl-skills")
+server = Server("AxiomLabs-skills")
 
 @server.list_tools()
 async def handle_list_tools() -> list:
@@ -185,7 +185,7 @@ async def main():
             read_stream,
             write_stream,
             InitializationOptions(
-                server_name="aios-pddl-skills",
+                server_name="AxiomLabs-skills",
                 server_version="1.0.0",
                 capabilities=server.get_capabilities(
                     notification_options=NotificationOptions(),

@@ -124,8 +124,8 @@ class RegressionAlgorithm:
             reg_planner = planner_factory()
             reg_translator = translator_factory()
 
-            from algorithm.kernel import AIOSKernel
-            kernel = AIOSKernel(
+            from algorithm.kernel import AxiomLabsKernel
+            kernel = AxiomLabsKernel(
                 translator=reg_translator,
                 planner=reg_planner,
                 executor=reg_executor,

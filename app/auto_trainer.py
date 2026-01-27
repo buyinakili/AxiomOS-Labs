@@ -1,4 +1,4 @@
-"""AIOS自主学习模式入口"""
+"""AxiomLabs自主学习模式入口"""
 import sys
 import os
 import argparse
@@ -19,7 +19,7 @@ def parse_arguments():
         default_auto_rounds = int(env_rounds)
     
     parser = argparse.ArgumentParser(
-        description='AIOS自主学习模式',
+        description='AxiomLabs自主学习模式',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 示例:
@@ -166,7 +166,7 @@ def main():
         mode_desc = "自动模式：LLM自动出题"
     
     print("="*80)
-    print("AIOS - 自演化智能操作系统")
+    print("AxiomLabs - 自演化智能操作系统")
     print("自主学习模式")
     print("="*80 + "\n")
     print(f"[模式] {mode_desc}")

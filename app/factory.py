@@ -1,6 +1,6 @@
 """依赖注入工厂"""
 from config.settings import Settings
-from algorithm.kernel import AIOSKernel
+from algorithm.kernel import AxiomLabsKernel
 
 # 接口
 from interface.translator import ITranslator
@@ -25,16 +25,16 @@ from infrastructure.skills.filesystem_skills import (
 )
 
 
-class AIOSFactory:
-    """AIOS系统工厂 - 负责组装所有组件"""
+class AxiomLabsFactory:
+    """AxiomLabs系统工厂 - 负责组装所有组件"""
 
     @staticmethod
-    def create_kernel(config: Settings) -> AIOSKernel:
+    def create_kernel(config: Settings) -> AxiomLabsKernel:
         """
-        创建AIOS内核
+        创建AxiomLabs内核
 
         :param config: 配置对象
-        :return: AIOSKernel实例
+        :return: AxiomLabsKernel实例
         """
         # 验证配置
         config.validate()
@@ -84,7 +84,7 @@ class AIOSFactory:
             executor.register_skill(CompressSkill())
 
             # 动态加载扩展技能
-            AIOSFactory._load_extended_skills(executor, config.skills_path)
+            AxiomLabsFactory._load_extended_skills(executor, config.skills_path)
             executor_type = "本地"
 
         # 5. 创建领域专家
@@ -100,7 +100,7 @@ class AIOSFactory:
         )
 
         # 7. 组装内核
-        kernel = AIOSKernel(
+        kernel = AxiomLabsKernel(
             translator=translator,
             planner=planner,
             executor=executor,

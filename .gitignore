@@ -38,7 +38,7 @@ test_results_*.json
 test_*.py
 
 # 排除旧版本备份
-SaveAIOS/
+SaveAxiomLabs/
 
 # 排除系统更新脚本
 update_system.py
@@ -56,6 +56,10 @@ logs/
 *.zip
 *.tar.gz
 *.7z
+*.tar
+*.zip
+*.gz
+SaveAIOS/
 
 # 排除 macOS 系统文件
 .DS_Store

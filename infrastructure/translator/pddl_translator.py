@@ -91,7 +91,7 @@ class PDDLTranslator(ITranslator):
         rules_str = "\n".join([f"{i+1}. {rule}" for i, rule in enumerate(expert.get_rules())])
 
         # 构建Prompt
-        prompt = f"""你现在是 AIOS 的 [{domain}] 逻辑专家。
+        prompt = f"""你现在是 AxiomLabs 的 [{domain}] 逻辑专家。
 任务：根据"已知事实"将用户目标转化为 PDDL Problem。
 
 [核心原则 - 严禁幻觉]:

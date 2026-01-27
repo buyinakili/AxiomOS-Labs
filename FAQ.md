@@ -1,4 +1,4 @@
-# AIOS-PDDL 常见问题与深度对话 (FAQ)
+# AxiomLabs常见问题与深度对话 (FAQ)
 
 本项目在 Bilibili 和 GitHub 收到了一些非常硬核的技术挑战，现整理如下，以帮助大家更好地理解该架构的底层逻辑。
 

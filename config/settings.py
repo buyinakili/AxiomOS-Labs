@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 
 @dataclass
 class Settings:
-    """AIOS系统配置"""
+    """AxiomLabs系统配置"""
     # 项目路径
     project_root: str
     tests_path: str

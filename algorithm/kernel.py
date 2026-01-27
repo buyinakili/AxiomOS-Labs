@@ -1,4 +1,4 @@
-"""AIOS核心内核算法"""
+"""AxiomLabs核心内核算法"""
 import re
 from typing import Set
 from interface.translator import ITranslator
@@ -7,9 +7,9 @@ from interface.executor import IExecutor
 from interface.storage import IStorage
 
 
-class AIOSKernel:
+class AxiomLabsKernel:
     """
-    AIOS核心内核 - 纯算法逻辑，只依赖接口
+    AxiomLabs核心内核 - 纯算法逻辑，只依赖接口
     """
 
     def __init__(

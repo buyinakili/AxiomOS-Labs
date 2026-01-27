@@ -460,7 +460,7 @@ class SandboxRollback:
     
     def execute_rollback(self) -> bool:
         print("="*80)
-        print("AIOS 沙盒回退工具")
+        print("AxiomLabs 沙盒回退工具")
         print("="*80)
         
         skill_info = self.get_last_skill()

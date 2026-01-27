@@ -1,4 +1,4 @@
-"""AIOS指定学习模式入口"""
+"""AxiomLabs指定学习模式入口"""
 import sys
 import os
 
@@ -12,7 +12,7 @@ from app.training_factory import TrainingFactory
 def main():
     """指定学习模式主函数"""
     print("="*80)
-    print("AIOS - 自演化智能操作系统")
+    print("AxiomLabs - 自演化智能操作系统")
     print("指定学习模式（用户指定任务）")
     print("="*80 + "\n")
 

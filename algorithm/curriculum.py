@@ -46,7 +46,7 @@ class CurriculumAlgorithm:
 
         # 构建Prompt
         prompt = f"""
-你现在是 AIOS 的【首席训练教官】。
+你现在是 AxiomLabs 的【首席训练教官】。
 
 【系统进化状态】:
 目前系统已经完全掌握并严禁重复出现的技能: {learned_skills}
@@ -107,7 +107,7 @@ class CurriculumAlgorithm:
 
         # 构建Prompt
         prompt = f"""
-你现在是 AIOS 的【首席训练教官】。
+你现在是 AxiomLabs 的【首席训练教官】。
 
 【用户指定的学习目标】:
 {task_goal}
