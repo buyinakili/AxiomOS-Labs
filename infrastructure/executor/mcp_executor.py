@@ -14,7 +14,7 @@ from infrastructure.mcp_client import SimpleMCPClient
 class MCPActionExecutor(IExecutor):
     """基于 MCP 的动作执行器"""
 
-    def __init__(self, storage_path: str = None, server_command: str = "python3", 
+    def __init__(self, storage_path: str = None, server_command: str = "python3",
                  server_args: List[str] = None):
         """
         初始化 MCP 执行器
@@ -33,22 +33,22 @@ class MCPActionExecutor(IExecutor):
             server_args=self.server_args
         )
         self._connected = False
-        print(f"[MCPExecutor] 初始化完成，服务器: {server_command} {' '.join(self.server_args)}", file=sys.stderr)
+        # 初始化日志已移除，由工厂统一输出
 
     def _ensure_connected(self) -> bool:
         """确保客户端已连接"""
         if not self._connected:
             try:
-                print("[MCPExecutor] 正在连接到 MCP 服务器...", file=sys.stderr)
                 success = self.client.connect()
                 if success:
                     self._connected = True
-                    print(f"[MCPExecutor] 连接成功，可用工具: {self.client.get_tool_names()}", file=sys.stderr)
+                    tool_names = self.client.get_tool_names()
+                    print(f"[MCP] 连接成功 ({len(tool_names)} 工具)", file=sys.stderr)
                 else:
-                    print("[MCPExecutor] 连接失败", file=sys.stderr)
+                    print("[MCP] 连接失败", file=sys.stderr)
                     return False
             except Exception as e:
-                print(f"[MCPExecutor] 连接异常: {e}", file=sys.stderr)
+                print(f"[MCP] 连接异常: {e}", file=sys.stderr)
                 return False
         return True
 
@@ -160,11 +160,12 @@ class MCPActionExecutor(IExecutor):
 
     def register_skill(self, skill):
         """MCP 执行器不直接注册技能，所有工具通过 MCP 服务器提供"""
-        print(f"[MCPExecutor] 警告: register_skill 被调用但忽略，技能 {skill.name} 不会注册", file=sys.stderr)
+        # 静默忽略，不输出警告
+        pass
 
     def register_skill_from_file(self, file_path: str) -> bool:
         """MCP 执行器不支持从文件加载技能"""
-        print(f"[MCPExecutor] 警告: register_skill_from_file 被调用但忽略", file=sys.stderr)
+        # 静默忽略，不输出警告
         return False
 
     def get_registered_skills(self) -> List[str]:
@@ -182,4 +183,4 @@ class MCPActionExecutor(IExecutor):
         if self._connected:
             self.client.disconnect()
             self._connected = False
-            print("[MCPExecutor] 已断开连接", file=sys.stderr)
+            # 静默断开，不输出日志

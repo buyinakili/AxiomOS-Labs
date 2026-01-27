@@ -105,7 +105,6 @@ class MCPClient:
                 return True
                 
             self.status = ConnectionStatus.CONNECTING
-            print(f"[MCP] 连接到服务器: {self.server_command} {' '.join(self.server_args)}", file=sys.stderr)
             
             try:
                 # 创建服务器参数
@@ -125,11 +124,7 @@ class MCPClient:
                     )
                 except asyncio.TimeoutError:
                     print("[MCP] 连接超时: stdio上下文进入超时", file=sys.stderr)
-                    import traceback
-                    traceback.print_stack(file=sys.stderr)
                     raise MCPClientError("连接超时: stdio上下文进入超时")
-                
-                print("[MCP] 连接建立成功", file=sys.stderr)
                 
                 # 创建客户端会话上下文管理器（5秒超时）
                 self.session = ClientSession(self.read_stream, self.write_stream)
@@ -140,34 +135,24 @@ class MCPClient:
                     )
                 except asyncio.TimeoutError:
                     print("[MCP] 连接超时: 客户端会话创建超时", file=sys.stderr)
-                    import traceback
-                    traceback.print_stack(file=sys.stderr)
                     raise MCPClientError("连接超时: 客户端会话创建超时")
-                
-                print("[MCP] 客户端会话创建成功", file=sys.stderr)
                 
                 # 初始化会话（5秒超时）
                 try:
                     await asyncio.wait_for(self.session.initialize(), timeout=5.0)
                 except asyncio.TimeoutError:
                     print("[MCP] 连接超时: 会话初始化超时", file=sys.stderr)
-                    import traceback
-                    traceback.print_stack(file=sys.stderr)
                     raise MCPClientError("连接超时: 会话初始化超时")
-                
-                print("[MCP] 会话初始化完成", file=sys.stderr)
                 
                 # 获取工具列表（5秒超时）
                 try:
                     await asyncio.wait_for(self._refresh_tools(), timeout=5.0)
                 except asyncio.TimeoutError:
                     print("[MCP] 连接超时: 获取工具列表超时", file=sys.stderr)
-                    import traceback
-                    traceback.print_stack(file=sys.stderr)
                     raise MCPClientError("连接超时: 获取工具列表超时")
                 
                 self.status = ConnectionStatus.CONNECTED
-                print(f"[MCP] 连接成功，可用工具: {len(self.tools)} 个", file=sys.stderr)
+                print(f"[MCP] 连接成功 ({len(self.tools)} 工具)", file=sys.stderr)
                 return True
                         
             except Exception as e:
@@ -185,10 +170,6 @@ class MCPClient:
         try:
             result = await self.session.list_tools()
             self.tools = []
-            
-            # 调试输出到stderr
-            print(f"[MCP] list_tools 返回类型: {type(result)}", file=sys.stderr)
-            print(f"[MCP] list_tools 返回值: {result}", file=sys.stderr)
             
             # 处理返回结果：可能是 ListToolsResult 对象或元组列表
             tools_list = []
@@ -208,12 +189,7 @@ class MCPClient:
                 if not tools_list:
                     tools_list = result
             
-            print(f"[MCP] 提取到的工具列表: {len(tools_list)} 个工具", file=sys.stderr)
-            
             for tool in tools_list:
-                # 调试输出
-                print(f"[MCP] 工具原始数据: {type(tool)} = {tool}", file=sys.stderr)
-                
                 # 提取工具信息
                 name = ""
                 description = ""
@@ -251,12 +227,8 @@ class MCPClient:
                 )
                 self.tools.append(mcp_tool)
                 
-            print(f"[MCP] 成功解析 {len(self.tools)} 个工具", file=sys.stderr)
-                
         except Exception as e:
             print(f"[MCP] 获取工具列表失败: {e}", file=sys.stderr)
-            import traceback
-            traceback.print_exc(file=sys.stderr)
             self.tools = []
     
     async def call_tool(self, tool_name: str, arguments: Dict[str, Any]) -> MCPResponse:
@@ -272,8 +244,6 @@ class MCPClient:
         """
         if not self.session:
             raise MCPClientError("会话未建立，请先调用 connect()")
-            
-        print(f"[MCP] 调用工具: {tool_name}, 参数: {arguments}", file=sys.stderr)
         
         try:
             # 调用工具（5秒超时）
@@ -284,17 +254,11 @@ class MCPClient:
                 )
             except asyncio.TimeoutError:
                 print(f"[MCP] 工具调用超时: {tool_name}", file=sys.stderr)
-                import traceback
-                traceback.print_stack(file=sys.stderr)
                 return MCPResponse(
                     success=False,
                     message=f"工具调用超时: {tool_name}",
                     error="Timeout after 5 seconds"
                 )
-            
-            # 调试输出
-            print(f"[MCP] call_tool 返回类型: {type(result)}", file=sys.stderr)
-            print(f"[MCP] call_tool 返回值: {result}", file=sys.stderr)
             
             # 检查是否是 CallToolResult 对象
             if hasattr(result, 'content'):
@@ -370,8 +334,6 @@ class MCPClient:
         except Exception as e:
             error_msg = f"工具调用失败: {str(e)}"
             print(f"[MCP] {error_msg}", file=sys.stderr)
-            import traceback
-            traceback.print_exc(file=sys.stderr)
             return MCPResponse(
                 success=False,
                 message=error_msg,
@@ -386,8 +348,7 @@ class MCPClient:
                     await self.session.__aexit__(None, None, None)
                     self._session_context = None
                     self.session = None
-            except Exception as e:
-                print(f"[MCP] 清理会话上下文时出错: {e}", file=sys.stderr)
+            except Exception:
                 pass
             try:
                 if self._stdio_context is not None:
@@ -395,8 +356,7 @@ class MCPClient:
                     self._stdio_context = None
                     self.read_stream = None
                     self.write_stream = None
-            except Exception as e:
-                print(f"[MCP] 清理 stdio 上下文时出错: {e}", file=sys.stderr)
+            except Exception:
                 pass
     
     async def disconnect(self):
@@ -404,7 +364,7 @@ class MCPClient:
         async with self._connection_lock:
             await self._cleanup()
             self.status = ConnectionStatus.DISCONNECTED
-            print("[MCP] 连接已断开", file=sys.stderr)
+            # 静默断开，不输出日志
     
     def get_tool_names(self) -> List[str]:
         """获取所有工具名称"""

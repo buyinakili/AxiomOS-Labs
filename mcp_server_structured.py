@@ -19,10 +19,10 @@ from mcp.server import NotificationOptions
 import mcp.server.stdio
 import asyncio
 
-# 配置logging，输出到stderr，级别为DEBUG
+# 配置logging，输出到stderr，级别为WARNING（减少冗长日志）
 logging.basicConfig(
-    level=logging.DEBUG,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    level=logging.WARNING,
+    format='%(name)s - %(levelname)s - %(message)s',
     stream=sys.stderr
 )
 logger = logging.getLogger("aios_mcp_server")

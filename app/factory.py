@@ -45,7 +45,6 @@ class AIOSFactory:
             base_url=config.llm_base_url,
             model=config.llm_model
         )
-        print(f"[Factory] LLM客户端已创建")
 
         # 2. 创建存储
         storage: IStorage = FileStorage(
@@ -53,7 +52,6 @@ class AIOSFactory:
             storage_path=config.storage_path,
             tests_path=config.tests_path
         )
-        print(f"[Factory] 存储已创建")
 
         # 3. 创建规划器
         planner: IPlanner = LAMAPlanner(
@@ -61,19 +59,18 @@ class AIOSFactory:
             temp_dir=config.temp_dir,
             timeout=config.planning_timeout
         )
-        print(f"[Factory] 规划器已创建")
 
         # 4. 创建执行器
         executor: IExecutor
         if config.use_mcp:
             # 使用 MCP 执行器
             server_args = config.mcp_server_args.strip().split() if config.mcp_server_args.strip() else ["mcp_server_structured.py"]
-            print(f"[Factory] 使用 MCP 执行器 (服务器: {config.mcp_server_command} {' '.join(server_args)})")
             executor = MCPActionExecutor(
                 storage_path=config.storage_path,
                 server_command=config.mcp_server_command,
                 server_args=server_args
             )
+            executor_type = "MCP"
         else:
             # 使用本地技能执行器
             executor = ActionExecutor(
@@ -88,14 +85,12 @@ class AIOSFactory:
 
             # 动态加载扩展技能
             AIOSFactory._load_extended_skills(executor, config.skills_path)
-
-        print(f"[Factory] 执行器已创建，注册了 {len(executor.get_registered_skills())} 个技能")
+            executor_type = "本地"
 
         # 5. 创建领域专家
         domain_experts = {
             "file_management": FileManagementExpert()
         }
-        print(f"[Factory] 领域专家已注册")
 
         # 6. 创建翻译器
         translator: ITranslator = PDDLTranslator(
@@ -103,7 +98,6 @@ class AIOSFactory:
             storage=storage,
             domain_experts=domain_experts
         )
-        print(f"[Factory] 翻译器已创建")
 
         # 7. 组装内核
         kernel = AIOSKernel(
@@ -113,7 +107,10 @@ class AIOSFactory:
             storage=storage,
             max_iterations=config.max_iterations
         )
-        print(f"[Factory] 内核已创建\n")
+
+        # 简洁日志
+        skill_count = len(executor.get_registered_skills())
+        print(f"[Factory] 内核已创建 | LLM: {config.llm_model} | 执行器: {executor_type} ({skill_count} 技能)")
 
         return kernel
 
