@@ -28,6 +28,11 @@ class Settings:
     max_iterations: int
     max_evolution_retries: int
     planning_timeout: int
+    
+    # MCP 配置
+    use_mcp: bool
+    mcp_server_command: str
+    mcp_server_args: str  # 空格分隔的参数
 
     @classmethod
     def load_from_env(cls, project_root: Optional[str] = None) -> 'Settings':
@@ -74,7 +79,10 @@ class Settings:
             llm_model=os.getenv("DEEPSEEK_MODEL", "deepseek-chat"),
             max_iterations=int(os.getenv("MAX_ITERATIONS", "5")),
             max_evolution_retries=int(os.getenv("MAX_EVOLUTION_RETRIES", "4")),
-            planning_timeout=int(os.getenv("PLANNING_TIMEOUT", "30"))
+            planning_timeout=int(os.getenv("PLANNING_TIMEOUT", "30")),
+            use_mcp=os.getenv("USE_MCP", "false").lower() == "true",
+            mcp_server_command=os.getenv("MCP_SERVER_COMMAND", "python3"),
+            mcp_server_args=os.getenv("MCP_SERVER_ARGS", "mcp_server_structured.py")
         )
 
     def validate(self) -> bool:

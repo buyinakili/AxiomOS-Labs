@@ -219,3 +219,4 @@ def main():
 if __name__ == "__main__":
     main()
 #python3 app/auto_trainer.py
+#python3 app/auto_trainer.py --task "将root下的txt文件重命名为new.txt"

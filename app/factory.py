@@ -15,6 +15,7 @@ from infrastructure.llm.deepseek_client import DeepSeekClient
 from infrastructure.storage.file_storage import FileStorage
 from infrastructure.planner.lama_planner import LAMAPlanner
 from infrastructure.executor.action_executor import ActionExecutor
+from infrastructure.executor.mcp_executor import MCPActionExecutor
 from infrastructure.translator.pddl_translator import PDDLTranslator
 from infrastructure.domain.file_management_expert import FileManagementExpert
 
@@ -62,19 +63,31 @@ class AIOSFactory:
         )
         print(f"[Factory] 规划器已创建")
 
-        # 4. 创建执行器并注册基础技能
-        executor: IExecutor = ActionExecutor(
-            storage_path=config.storage_path
-        )
+        # 4. 创建执行器
+        executor: IExecutor
+        if config.use_mcp:
+            # 使用 MCP 执行器
+            server_args = config.mcp_server_args.strip().split() if config.mcp_server_args.strip() else ["mcp_server_structured.py"]
+            print(f"[Factory] 使用 MCP 执行器 (服务器: {config.mcp_server_command} {' '.join(server_args)})")
+            executor = MCPActionExecutor(
+                storage_path=config.storage_path,
+                server_command=config.mcp_server_command,
+                server_args=server_args
+            )
+        else:
+            # 使用本地技能执行器
+            executor = ActionExecutor(
+                storage_path=config.storage_path
+            )
 
-        # 注册基础技能
-        executor.register_skill(ScanSkill())
-        executor.register_skill(MoveSkill())
-        executor.register_skill(GetAdminSkill())
-        executor.register_skill(CompressSkill())
+            # 注册基础技能
+            executor.register_skill(ScanSkill())
+            executor.register_skill(MoveSkill())
+            executor.register_skill(GetAdminSkill())
+            executor.register_skill(CompressSkill())
 
-        # 动态加载扩展技能
-        AIOSFactory._load_extended_skills(executor, config.skills_path)
+            # 动态加载扩展技能
+            AIOSFactory._load_extended_skills(executor, config.skills_path)
 
         print(f"[Factory] 执行器已创建，注册了 {len(executor.get_registered_skills())} 个技能")
 
@@ -118,6 +131,6 @@ class AIOSFactory:
             return
 
         for filename in os.listdir(skills_path):
-            if filename.endswith("_skill.py"):
+            if filename.endswith("_skill.py") and filename != "base_skill.py":
                 skill_file = os.path.join(skills_path, filename)
                 executor.register_skill_from_file(skill_file)
