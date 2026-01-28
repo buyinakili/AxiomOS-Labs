@@ -164,9 +164,43 @@ class MCPActionExecutor(IExecutor):
         pass
 
     def register_skill_from_file(self, file_path: str) -> bool:
-        """MCP 执行器不支持从文件加载技能"""
-        # 静默忽略，不输出警告
-        return False
+        """
+        在沙盒模式下，将技能文件部署到沙盒的 MCP 技能目录
+        
+        注意：此方法仅在沙盒环境中有效，用于进化算法临时加载新技能
+        """
+        import os
+        import shutil
+        
+        # 检查是否为沙盒环境（通过存储路径判断）
+        # 沙盒环境的 storage_path 通常由沙盒管理器设置
+        if not self.storage_path:
+            # 非沙盒环境，保持原行为（静默忽略）
+            return False
+        
+        # 确保文件存在
+        if not os.path.exists(file_path):
+            return False
+        
+        # 在沙盒存储路径下创建 mcp_skills 目录
+        sandbox_mcp_skills_dir = os.path.join(self.storage_path, "mcp_skills")
+        os.makedirs(sandbox_mcp_skills_dir, exist_ok=True)
+        
+        # 复制技能文件到沙盒 MCP 技能目录
+        filename = os.path.basename(file_path)
+        target_path = os.path.join(sandbox_mcp_skills_dir, filename)
+        
+        try:
+            shutil.copy2(file_path, target_path)
+            print(f"[MCP Executor] 沙盒技能已部署: {filename}")
+            
+            # 设置环境变量，让 MCP 服务器知道沙盒技能目录
+            os.environ["SANDBOX_MCP_SKILLS_DIR"] = sandbox_mcp_skills_dir
+            
+            return True
+        except Exception as e:
+            print(f"[MCP Executor] 沙盒技能部署失败: {e}")
+            return False
 
     def get_registered_skills(self) -> List[str]:
         """获取可用的工具名称"""

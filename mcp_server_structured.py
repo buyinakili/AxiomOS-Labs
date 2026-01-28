@@ -36,31 +36,90 @@ server = Server("AxiomLabs-skills")
 # 动态加载MCP技能
 def load_mcp_skills():
     """
-    动态加载 infrastructure.mcp_skills 模块下的所有技能类
+    动态加载多个目录下的MCP技能类
+    
+    扫描以下目录：
+    1. infrastructure/mcp_skills/ (核心技能)
+    2. 环境变量 SANDBOX_MCP_SKILLS_DIR 指定的目录（沙盒技能）
+    
     返回技能实例列表
     """
     skills = []
     skill_module = "infrastructure.mcp_skills"
     
+    # 目录列表
+    skill_dirs = []
+    
+    # 1. 核心技能目录
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    core_skill_dir = os.path.join(current_dir, "infrastructure", "mcp_skills")
+    skill_dirs.append(("core", core_skill_dir))
+    
+    # 2. 沙盒技能目录（通过环境变量）
+    sandbox_skill_dir = os.environ.get("SANDBOX_MCP_SKILLS_DIR")
+    if sandbox_skill_dir and os.path.exists(sandbox_skill_dir):
+        skill_dirs.append(("sandbox", sandbox_skill_dir))
+    
+    # 导入MCPBaseSkill用于类型检查
     try:
-        module = importlib.import_module(skill_module)
+        from infrastructure.mcp_skills.mcp_base_skill import MCPBaseSkill as Base
     except ImportError as e:
-        logger.error(f"无法导入MCP技能模块 {skill_module}: {e}")
+        logger.error(f"无法导入MCPBaseSkill: {e}")
         return skills
     
-    # 遍历模块中的所有属性
-    for attr_name in dir(module):
-        attr = getattr(module, attr_name)
-        # 检查是否为类，且是MCPBaseSkill的子类（排除MCPBaseSkill自身）
-        if isinstance(attr, type) and attr_name != "MCPBaseSkill":
-            try:
-                # 检查是否为MCPBaseSkill的子类
-                from infrastructure.mcp_skills.mcp_base_skill import MCPBaseSkill as Base
-                if issubclass(attr, Base) and attr is not Base:
-                    skills.append(attr())
-                    logger.info(f"加载MCP技能: {attr().name}")
-            except ImportError:
-                continue
+    # 扫描每个目录
+    for dir_type, skill_dir in skill_dirs:
+        if not os.path.exists(skill_dir):
+            logger.debug(f"技能目录不存在 ({dir_type}): {skill_dir}")
+            continue
+        
+        logger.info(f"扫描{dir_type}技能目录: {skill_dir}")
+        
+        # 扫描目录下的所有.py文件
+        for filename in os.listdir(skill_dir):
+            # 加载所有.py文件，除了mcp_base_skill.py
+            # 包括：1) 以_skill.py结尾的文件（核心技能） 2) generated_skill_v*.py文件（生成的技能）
+            if filename.endswith(".py") and filename != "mcp_base_skill.py":
+                # 检查是否是技能文件
+                is_core_skill = filename.endswith("_skill.py")
+                is_generated_skill = filename.startswith("generated_skill_")
+                
+                if not (is_core_skill or is_generated_skill):
+                    continue
+                    
+                module_name = filename[:-3]  # 移除.py
+                try:
+                    # 动态导入模块
+                    # 对于沙盒目录，需要特殊处理导入路径
+                    if dir_type == "sandbox":
+                        # 将沙盒目录添加到 Python 路径
+                        import sys
+                        if skill_dir not in sys.path:
+                            sys.path.insert(0, skill_dir)
+                        
+                        # 直接导入文件
+                        spec = importlib.util.spec_from_file_location(module_name, os.path.join(skill_dir, filename))
+                        module = importlib.util.module_from_spec(spec)
+                        spec.loader.exec_module(module)
+                    else:
+                        # 核心技能使用标准导入
+                        full_module_name = f"{skill_module}.{module_name}"
+                        module = importlib.import_module(full_module_name)
+                    
+                    # 查找模块中所有MCPBaseSkill的子类
+                    for attr_name in dir(module):
+                        attr = getattr(module, attr_name)
+                        if isinstance(attr, type) and issubclass(attr, Base) and attr is not Base:
+                            try:
+                                skill_instance = attr()
+                                skills.append(skill_instance)
+                                logger.info(f"加载MCP技能 ({dir_type}): {skill_instance.name}")
+                            except Exception as e:
+                                logger.error(f"实例化技能 {attr_name} 失败: {e}")
+                except ImportError as e:
+                    logger.error(f"导入模块 {filename} 失败: {e}")
+                except Exception as e:
+                    logger.error(f"处理文件 {filename} 时出错: {e}")
     
     # 如果动态加载失败，回退到硬编码列表
     if not skills:
@@ -78,7 +137,15 @@ def load_mcp_skills():
             RemoveFileSkill()
         ]
     
-    return skills
+    # 去重（按技能名称）
+    unique_skills = {}
+    for skill in skills:
+        if skill.name not in unique_skills:
+            unique_skills[skill.name] = skill
+        else:
+            logger.warning(f"重复技能名称: {skill.name}，跳过")
+    
+    return list(unique_skills.values())
 
 # 加载技能实例
 skill_instances = load_mcp_skills()

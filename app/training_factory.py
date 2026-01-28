@@ -170,6 +170,14 @@ class TrainingFactory:
         os.makedirs(mcp_skills_path, exist_ok=True)
         target_skill_path = os.path.join(mcp_skills_path, new_filename)
 
+        # 验证技能文件格式（确保是MCP格式）
+        with open(skill_data['skill_file_path'], 'r', encoding='utf-8') as f:
+            content = f.read()
+            if 'MCPBaseSkill' not in content:
+                print(f"  - 警告：技能文件可能不是MCP格式，但将继续复制")
+            if 'BaseSkill' in content and 'MCPBaseSkill' not in content:
+                print(f"  - 严重警告：技能文件使用旧版BaseSkill，可能无法被MCP服务器加载")
+
         shutil.copy(skill_data['skill_file_path'], target_skill_path)
         print(f"  - Python 脚本已部署到MCP技能目录: {target_skill_path}")
         print("  - 注意：需要重启MCP服务器才能加载新技能")

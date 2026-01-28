@@ -220,14 +220,18 @@ Analysis: The generated code caused a Python exception. Fix syntax or library us
         return """
 ### AxiomLabs 开发规范 (System Rules) ###
 1. 技能基类定义:
-class BaseSkill:
+class MCPBaseSkill:
     def _safe_path(self, *parts): # 自动处理 _dot_ 并返回绝对路径
+    async def execute(self, arguments: Dict[str, Any]) -> List[Dict[str, Any]]:
+        # 执行技能逻辑，返回MCP结构化响应
+        # 使用 self.create_success_response(message, pddl_delta) 或 self.create_error_response(error_message)
 2. 返回结果规范:
-ExecutionResult(success, message, add_facts=[], del_facts=[])
-- add_facts: 执行成功后需要写入环境的 PDDL 事实列表
+MCP技能必须返回结构化响应，使用 self.create_success_response(message, pddl_delta)
+- message: 人类可读的消息
+- pddl_delta: PDDL事实变化，格式如 "(at file folder)" 或 "(not (at file folder))"
 3. 文件系统规则:
 - 文件名中的 '.' 统一表现为 '_dot_' (PDDL 兼容性)
-- 只能操作 self.base_path 目录下的文件
+- 只能操作 self._safe_path() 构建的路径下的文件
 "严禁在非删除类操作（如 copy, scan, get_admin）中包含 (not (at ...)) 效果。copy 操作必须保持源文件状态不变。"
 """
 
@@ -267,14 +271,14 @@ ExecutionResult(success, message, add_facts=[], del_facts=[])
 
 [代码规范]:
 1. 路径处理：必须使用 `self._safe_path(folder, filename)` 获取物理路径，严禁手动 replace。
-2. 事实返回：ExecutionResult 的 add/del_facts 必须保留原始 args 中的 `_dot_` 命名。
+2. 事实返回：self.create_success_response() 的 pddl_delta必须保留原始 args 中的 `_dot_` 命名。
 3. PDDL 前提：Precondition 仅限 (scanned), (at), (has_admin_rights) 等现有谓词。
 
 [输出 JSON 模板]:
 {{
     "action_name": "remove_file",
     "pddl_patch": "(:action remove_file :parameters (?f - file ?d - folder) :precondition (and (at ?f ?d)) :effect (and (not (at ?f ?d))))",
-    "python_code": "from infrastructure.skills.base_skill import BaseSkill\\nfrom interface.executor import ExecutionResult\\nimport os\\n\\nclass GeneratedSkill(BaseSkill):\\n    @property\\n    def name(self): return 'remove_file'\\n    def execute(self, args):\\n        target = self._safe_path(args[1], args[0])\\n        try:\\n            os.remove(target)\\n            return ExecutionResult(True, 'Deleted', [], [f'(at {{args[0]}} {{args[1]}})'])\\n        except Exception as e:\\n            return ExecutionResult(False, str(e))",
+    "python_code": "from infrastructure.mcp_skills.mcp_base_skill import MCPBaseSkill\\nimport os\\nimport json\\n\\nclass GeneratedSkill(MCPBaseSkill):\\n    @property\\n    def name(self):\\n        return 'remove_file'\\n    \\n    @property\\n    def description(self):\\n        return '删除文件'\\n    \\n    @property\\n    def input_schema(self):\\n        return {{\\n            'type': 'object',\\n            'properties': {{\\n                'file': {{'type': 'string', 'description': '文件名（PDDL格式，点替换为_dot_）'}},\\n                'folder': {{'type': 'string', 'description': '文件夹名'}}\\n            }},\\n            'required': ['file', 'folder']\\n        }}\\n    \\n    async def execute(self, arguments):\\n        file = arguments.get('file')\\n        folder = arguments.get('folder')\\n        target = self._safe_path(folder, file)\\n        try:\\n            os.remove(target)\\n            pddl_delta = f'(not (at {{file}} {{folder}}))'\\n            return self.create_success_response(f'文件 {{file}} 已从 {{folder}} 删除', pddl_delta)\\n        except Exception as e:\\n            return self.create_error_response(str(e))",
     "test_args": ["test_dot_txt", "root"]
 }}
 """
