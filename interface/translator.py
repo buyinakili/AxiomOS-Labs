@@ -1,6 +1,6 @@
 """翻译器接口定义"""
 from abc import ABC, abstractmethod
-from typing import Set, List
+from typing import Set, List, Dict, Optional
 
 
 class ITranslator(ABC):
@@ -17,7 +17,7 @@ class ITranslator(ABC):
         pass
 
     @abstractmethod
-    def translate(self, user_goal: str, memory_facts: Set[str], domain: str, execution_history: List[str] = None) -> str:
+    def translate(self, user_goal: str, memory_facts: Set[str], domain: str, execution_history: List[str] = None, iteration: int = 0, objects: Optional[Dict[str, str]] = None) -> str:
         """
         将用户目标和当前事实转换为PDDL Problem
 
@@ -25,6 +25,8 @@ class ITranslator(ABC):
         :param memory_facts: 当前的PDDL事实集合
         :param domain: 领域名称
         :param execution_history: 执行历史记录（动作名称列表），可选
+        :param iteration: 当前迭代次数（0表示第一轮）
+        :param objects: 累积的对象映射 {对象名: 类型}，用于后续轮次构建objects部分
         :return: PDDL Problem内容（字符串）
         """
         pass

@@ -26,6 +26,11 @@ class PDDLTranslator(ITranslator):
         self.storage = storage
         self.domain_experts = domain_experts
 
+    def _should_debug_prompt(self) -> bool:
+        """检查是否应该打印调试信息"""
+        import os
+        return os.environ.get("AXIOMLABS_DEBUG_PROMPT", "").lower() in ("1", "true", "yes")
+
     def route_domain(self, user_goal: str) -> str:
         """
         路由任务到对应的领域
@@ -42,6 +47,13 @@ class PDDLTranslator(ITranslator):
 只需返回领域名称，不要其他文字。
 """
 
+        # 调试：打印发送给LLM的提示词（仅当环境变量AXIOMLABS_DEBUG_PROMPT为真时）
+        import sys
+        if self._should_debug_prompt():
+            print("\n=== DEBUG: Prompt sent to LLM (route_domain) ===", file=sys.stderr)
+            print(prompt, file=sys.stderr)
+            print("=== DEBUG END ===\n", file=sys.stderr)
+        
         response = self.llm.chat(
             messages=[{"role": "user", "content": prompt}],
             temperature=0
@@ -50,7 +62,112 @@ class PDDLTranslator(ITranslator):
         choice = response.strip().lower()
         return choice if choice in self.domain_experts else domain_names[0]
 
-    def translate(self, user_goal: str, memory_facts: Set[str], domain: str, execution_history: List[str] = None) -> str:
+    def _extract_objects_from_facts(self, memory_facts: Set[str], domain: str) -> Dict[str, str]:
+        """
+        从事实集合中提取对象及其类型
+        
+        :param memory_facts: PDDL事实集合
+        :param domain: 领域名称（目前仅支持file_management）
+        :return: 字典 {对象名: 类型}
+        """
+        # 目前只处理file_management领域
+        if domain != "file_management":
+            # 默认返回空，后续可根据需要扩展
+            return {}
+        
+        # 类型映射：谓词 -> 参数位置 -> 类型
+        type_mapping = {
+            "at": {0: "file", 1: "folder"},
+            "connected": {0: "folder", 1: "folder"},
+            "scanned": {0: "folder"},
+            "is_created": {0: "file"},  # 也可能是folder，但默认为file
+            "is_compressed": {0: "file", 1: "archive"},
+        }
+        
+        objects = {}
+        for fact in memory_facts:
+            # 解析事实，格式如 "(at file_a root)" 或 "(not (at file_a root))"
+            # 我们只关心正事实，忽略not
+            if fact.startswith("(not"):
+                continue
+            # 移除括号
+            content = fact.strip("()")
+            parts = content.split()
+            if not parts:
+                continue
+            predicate = parts[0]
+            if predicate not in type_mapping:
+                continue
+            mapping = type_mapping[predicate]
+            for pos, obj in enumerate(parts[1:]):
+                if pos in mapping:
+                    obj_name = obj
+                    obj_type = mapping[pos]
+                    # 清理对象名称：去除任何可能残留的括号
+                    obj_name = obj_name.strip("()")
+                    if not obj_name:
+                        continue
+                    # 如果对象已存在，检查类型是否冲突；若冲突，优先使用更具体的类型？暂时忽略
+                    if obj_name in objects and objects[obj_name] != obj_type:
+                        # 类型冲突，暂时保留原有类型（可记录日志）
+                        pass
+                    else:
+                        objects[obj_name] = obj_type
+        # 调试打印（仅当环境变量AXIOMLABS_DEBUG_PROMPT为真时）
+        import sys
+        if self._should_debug_prompt():
+            print(f"[DEBUG] 提取的对象: {objects}", file=sys.stderr)
+        return objects
+    
+    def _build_objects_section(self, objects: Dict[str, str]) -> str:
+        """
+        构建PDDL objects部分
+        
+        :param objects: 对象字典
+        :return: objects部分字符串
+        """
+        if not objects:
+            return ""
+        # 按类型分组
+        type_to_objs = {}
+        for obj, typ in objects.items():
+            type_to_objs.setdefault(typ, []).append(obj)
+        lines = []
+        for typ, objs_list in type_to_objs.items():
+            line = " ".join(objs_list) + " - " + typ
+            lines.append(line)
+        return "\n    ".join(lines)
+    
+    def _build_init_section(self, memory_facts: Set[str], objects: Dict[str, str] = None) -> str:
+        """
+        构建PDDL init部分
+        
+        :param memory_facts: 事实集合
+        :param objects: 对象字典 {对象名: 类型}，用于生成静态连接事实
+        :return: init部分字符串
+        """
+        init_facts = []
+        for fact in memory_facts:
+            # 忽略not事实，因为not在PDDL init中不能出现
+            if fact.startswith("(not"):
+                continue
+            init_facts.append(fact)
+        
+        # 添加静态连接事实（仅针对file_management领域）
+        if objects:
+            # 找出所有文件夹
+            folders = [obj for obj, typ in objects.items() if typ == "folder"]
+            # 生成双向连接
+            for f1 in folders:
+                for f2 in folders:
+                    if f1 != f2:
+                        init_facts.append(f"(connected {f1} {f2})")
+        
+        # 添加total-cost
+        init_facts.append("(= (total-cost) 0)")
+        return "\n    ".join(init_facts)
+    
+    def translate(self, user_goal: str, memory_facts: Set[str], domain: str, execution_history: List[str] = None, iteration: int = 0, objects: Dict[str, str] = None) -> str:
         """
         将用户目标和当前事实转换为PDDL Problem
 
@@ -58,8 +175,13 @@ class PDDLTranslator(ITranslator):
         :param memory_facts: 当前的PDDL事实集合
         :param domain: 领域名称
         :param execution_history: 执行历史记录（动作名称列表），可选
+        :param iteration: 当前迭代次数（0表示第一轮）
+        :param objects: 累积的对象映射 {对象名: 类型}，用于后续轮次构建objects部分
         :return: PDDL Problem内容
         """
+        import sys
+        if self._should_debug_prompt():
+            print(f"[翻译器] translate called: iteration={iteration}, memory_facts={memory_facts}, objects={objects}", file=sys.stderr)
         # 获取领域专家
         expert = self.domain_experts.get(domain)
         if not expert:
@@ -69,7 +191,7 @@ class PDDLTranslator(ITranslator):
         domain_content = self.storage.read_domain(domain)
 
         # 构建上下文
-        facts_str = "\n".join(sorted(list(memory_facts))) if memory_facts else "未知"
+        facts_str = "\n".join(sorted(list(memory_facts))) if memory_facts else "无"
         
         # 构建执行历史字符串
         history_str = "无"
@@ -90,28 +212,24 @@ class PDDLTranslator(ITranslator):
         # 获取领域规则
         rules_str = "\n".join([f"{i+1}. {rule}" for i, rule in enumerate(expert.get_rules())])
 
-        # 构建Prompt
-        prompt = f"""你现在是 AxiomLabs 的 [{domain}] 逻辑专家。
-任务：根据"已知事实"将用户目标转化为 PDDL Problem。
+        # 判断是否为第一轮
+        if iteration == 0:
+            # 第一轮：使用完整Prompt
+            prompt = f"""你现在是[{domain}] 逻辑专家。
+任务：根据"已知环境事实"将用户目标转化为 PDDL Problem。
+
+{memory_context}
 
 [核心原则 - 严禁幻觉]:
-1. 仅能使用"已知环境事实"或任务中明确提到的对象、位置和状态。
-2. 如果"已知环境事实"或任务中没有提到具体信息，你绝对不能猜测信息，优先将目标设置为获取信息的操作。
+1. 你绝对不能将"已知环境事实"或任务中没有提到具体信息的目标写入init或goal中。
+2. 如果"已知环境事实"或任务中没有提到具体信息，你绝对不能猜测信息，优先将目标设置为可获取信息动作后的唯一谓词，且目标仅为此。
 3. 必须在 (:init) 中包含 (= (total-cost) 0)。
-4. 必须在 PDDL 末尾添加 (:metric minimize (total-cost)) 以追求最优路径。
-5. 避免关键字：严禁出现exists
+4. 避免关键字：严禁出现exists
+5. 若已知环境事实为空（即显示为"无"），你必须将goal仅设置为获取信息的动作后的唯一谓词。
+6. 严禁发明任何文件对象。如果不知道具体文件名，绝对不能在objects中创建文件对象。
 
-[扫描规则]:
-- 如果不知道文件的完整名称，目标必须**仅包含** (scanned folder)，不能包含其他谓词
-- init 中不能预先设置 (scanned ...) 谓词
-
-[执行历史使用规则]:
 - 执行历史记录了之前执行过的动作，可以帮助你理解当前状态
-- 例如：如果执行历史中有"scan root"和"remove_file good_dot_txt root"，说明已经扫描过root文件夹并删除了good_dot_txt文件
 - 结合已知事实和执行历史来判断目标是否已完成
-
-[特殊指令]:
-如果"已知事实"已经完全满足了"用户最终目标"，请不要输出 PDDL，只需直接输出字符串: GOAL_FINISHED_ALREADY
 
 [领域逻辑规则]:
 {rules_str}
@@ -119,12 +237,60 @@ class PDDLTranslator(ITranslator):
 [Domain 定义]:
 {domain_content}
 
-[上下文事实与目标]:
-{memory_context}
-
 [输出要求]:
 仅输出 PDDL 代码 或 GOAL_FINISHED_ALREADY。
 """
+        else:
+            # 后续轮次：自动构建objects和init，LLM只生成goal
+            # 如果提供了objects，则以其为基础，否则从事实中提取
+            if objects is None:
+                objects = self._extract_objects_from_facts(memory_facts, domain)
+            else:
+                # 合并新事实中出现的对象（避免遗漏）
+                new_objects = self._extract_objects_from_facts(memory_facts, domain)
+                for obj, typ in new_objects.items():
+                    if obj not in objects:
+                        objects[obj] = typ
+            objects_section = self._build_objects_section(objects)
+            init_section = self._build_init_section(memory_facts, objects)
+            
+            prompt = f"""你现在是 AxiomLabs 的 [{domain}] 逻辑专家。
+任务：根据当前状态，仅生成PDDL Problem的(:goal ...)部分。
+
+[当前状态]:
+- 已知对象 (:objects):
+    {objects_section if objects_section else "（无）"}
+- 初始状态 (:init):
+    {init_section}
+
+{memory_context}
+
+[领域逻辑规则]:
+{rules_str}
+
+[Domain 定义]:
+{domain_content}
+
+[要求]:
+1. 仅输出 (:goal ...) 部分，不要输出完整的PDDL Problem。
+2. 如果当前状态已满足用户目标，请输出 "GOAL_FINISHED_ALREADY"。
+3. 避免使用exists关键字。
+4. 请你将此任务所有可能出现在goal中的目标，所有可能相关的目标全部写入objects
+5. 确保目标谓词与领域谓词匹配，并且参数类型正确。
+
+示例输出:
+(:goal (and (at file_a backup)))
+或
+GOAL_FINISHED_ALREADY
+
+请输出：
+"""
+        # 调试：打印prompt内容（仅当环境变量AXIOMLABS_DEBUG_PROMPT为真时）
+        import sys
+        if self._should_debug_prompt():
+            print("\n=== DEBUG: Prompt content (before LLM) ===", file=sys.stderr)
+            print(prompt, file=sys.stderr)
+            print("=== DEBUG END ===\n", file=sys.stderr)
 
         response = self.llm.chat(
             messages=[{"role": "user", "content": prompt}],
@@ -144,4 +310,23 @@ class PDDLTranslator(ITranslator):
         print(pddl_code)
         print("="*80 + "\n")
 
-        return pddl_code.strip()
+        # 如果是后续轮次且LLM返回了goal部分，需要组装完整problem
+        if iteration > 0 and not pddl_code.strip().startswith("GOAL_FINISHED_ALREADY"):
+            # 提取goal部分
+            goal_content = pddl_code.strip()
+            # 确保goal内容以(:goal开头)
+            if not goal_content.startswith("(:goal"):
+                # 可能是纯谓词，包装一下
+                goal_content = f"(:goal (and {goal_content}))"
+            # 构建完整problem
+            objects_section = self._build_objects_section(objects)
+            init_section = self._build_init_section(memory_facts, objects)
+            problem = f"(define (problem file-management-problem)\n  (:domain file-manager)\n  (:objects\n    {objects_section}\n  )\n  (:init\n    {init_section}\n  )\n  {goal_content}\n  (:metric minimize (total-cost))\n)"
+            # 打印组装后的完整problem
+            print("[翻译器] 组装完整PDDL Problem:")
+            print(problem)
+            print("="*80 + "\n")
+            return problem
+        else:
+            # 第一轮或GOAL_FINISHED_ALREADY，直接返回LLM的输出
+            return pddl_code.strip()

@@ -9,6 +9,7 @@ import sys
 from typing import Dict, List
 from interface.executor import IExecutor, ExecutionResult
 from infrastructure.mcp_client import SimpleMCPClient
+from infrastructure.pddl.pddl_state_updater import PDDLDelta
 
 
 class MCPActionExecutor(IExecutor):
@@ -133,11 +134,14 @@ class MCPActionExecutor(IExecutor):
             if response.success:
                 # 提取 pddl_delta 并添加到结果中
                 pddl_delta = response.pddl_delta or ""
+                print(f"[MCP Executor DEBUG] tool={tool_name}, pddl_delta={pddl_delta}", file=sys.stderr)
+                # 解析 delta 字符串为单独的事实
+                delta = PDDLDelta.parse(pddl_delta)
                 return ExecutionResult(
                     True,
                     response.message,
-                    add_facts=[pddl_delta] if pddl_delta and not pddl_delta.startswith("-") else [],
-                    del_facts=[pddl_delta[1:]] if pddl_delta and pddl_delta.startswith("-") else []
+                    add_facts=delta.add_facts,
+                    del_facts=delta.del_facts
                 )
             else:
                 return ExecutionResult(

@@ -9,8 +9,59 @@ from config.settings import Settings
 from app.factory import AxiomLabsFactory
 
 
+def print_usage():
+    """打印用法"""
+    print("用法: python main_demo.py [目标描述] [选项]")
+    print()
+    print("选项:")
+    print("  --debug-prompt    显示发送给LLM的提示词（调试用）")
+    print("  --help            显示此帮助信息")
+    print()
+    print("示例:")
+    print("  python main_demo.py \"将root下的txt文件移动到backup文件夹下\"")
+    print("  python main_demo.py --debug-prompt")
+    print("  python main_demo.py \"扫描root文件夹\" --debug-prompt")
+
+
 def main():
     """主函数"""
+    # 解析命令行参数
+    args = sys.argv[1:]
+    debug_prompt = False
+    user_goal = None
+
+    i = 0
+    while i < len(args):
+        arg = args[i]
+        if arg == "--debug-prompt":
+            debug_prompt = True
+            i += 1
+        elif arg == "--help":
+            print_usage()
+            return
+        elif arg.startswith("--"):
+            print(f"未知选项: {arg}")
+            print_usage()
+            sys.exit(1)
+        else:
+            # 非选项参数视为目标描述
+            if user_goal is None:
+                user_goal = arg
+                # 如果目标描述包含空格，将剩余部分合并
+                if i + 1 < len(args) and not args[i + 1].startswith("--"):
+                    remaining = args[i + 1:]
+                    user_goal = " ".join([arg] + remaining)
+                    break
+            i += 1
+
+    # 设置调试环境变量
+    if debug_prompt:
+        os.environ["AXIOMLABS_DEBUG_PROMPT"] = "1"
+        print("[Main] 调试模式已启用：将显示发送给LLM的提示词")
+    else:
+        # 确保环境变量未设置（避免之前运行的影响）
+        os.environ.pop("AXIOMLABS_DEBUG_PROMPT", None)
+
     print("="*80)
     print("AxiomLabs - 自演化智能操作系统")
     print("生产模式")
@@ -27,12 +78,9 @@ def main():
     kernel = AxiomLabsFactory.create_kernel(config)
 
     # 3. 运行任务
-    # 可以从命令行参数获取目标，或使用默认目标
-    if len(sys.argv) > 1:
-        user_goal = " ".join(sys.argv[1:])
-    else:
+    if user_goal is None:
         # 默认任务
-        user_goal = "将root下的txt移动到backup文件夹下,然后把backup文件夹下的其他文件都删了"
+        user_goal = "将root下的txt文件移动到backup文件夹下"
 
     print(f"[Main] 开始执行任务: {user_goal}\n")
     print("="*80 + "\n")

@@ -1,6 +1,6 @@
 """AxiomLabs核心内核算法"""
 import re
-from typing import Set
+from typing import Set, Dict
 from interface.translator import ITranslator
 from interface.planner import IPlanner
 from interface.executor import IExecutor
@@ -39,6 +39,7 @@ class AxiomLabsKernel:
         self.storage = storage
         self.max_iterations = max_iterations
         self.memory_facts: Set[str] = set()
+        self.objects: Dict[str, str] = {}  # 对象名 -> 类型
         self.current_domain: str = None
         self.sandbox_mode = sandbox_mode
         self.domain_path = domain_path
@@ -65,7 +66,9 @@ class AxiomLabsKernel:
                 user_goal,
                 self.memory_facts,
                 self.current_domain,
-                execution_history
+                execution_history,
+                iteration=i,
+                objects=self.objects if i > 0 else None
             )
 
             # 检查是否已完成
@@ -78,6 +81,10 @@ class AxiomLabsKernel:
             if goal_predicates and self._check_goals_achieved(goal_predicates):
                 print(f"[Kernel] 任务完成：目标谓词已在事实库中")
                 return True
+
+            # 如果是第一轮，从problem中提取objects并存储
+            if i == 0:
+                self._update_objects_from_problem(problem_pddl)
 
             # 4. 保存Problem并执行规划
             self.storage.write_problem(problem_pddl)
@@ -133,6 +140,8 @@ class AxiomLabsKernel:
 
                     if result.add_facts:
                         self.memory_facts.update(result.add_facts)
+                        # 根据新增事实更新objects
+                        self._update_objects_from_facts(result.add_facts, result.del_facts)
                 else:
                     print(f"[Kernel] 步骤 {step_num} 失败: {result.message}")
                     self.memory_facts.add(f"; Error: {result.message}")
@@ -176,7 +185,67 @@ class AxiomLabsKernel:
                 return False
         return True
 
+    def _update_objects_from_problem(self, problem_pddl: str):
+        """
+        从PDDL Problem中提取objects并更新self.objects
+        """
+        # 正则匹配objects部分
+        objects_match = re.search(r'\(:objects\s+(.*?)\s*\)', problem_pddl, re.DOTALL)
+        if not objects_match:
+            return
+        objects_text = objects_match.group(1).strip()
+        # 按行分割
+        lines = objects_text.split('\n')
+        for line in lines:
+            line = line.strip()
+            if not line or line.startswith(';'):
+                continue
+            # 格式: "obj1 obj2 ... - type"
+            if ' - ' in line:
+                objs_part, typ = line.rsplit(' - ', 1)
+                objs = objs_part.split()
+                for obj in objs:
+                    self.objects[obj] = typ.strip()
+        print(f"[Kernel] 从第一轮problem中提取objects: {self.objects}")
+
+    def _update_objects_from_facts(self, add_facts: Set[str], del_facts: Set[str]):
+        """
+        根据新增/删除的事实更新objects
+        目前仅支持file_management领域
+        """
+        # 类型映射：谓词 -> 参数位置 -> 类型
+        type_mapping = {
+            "at": {0: "file", 1: "folder"},
+            "connected": {0: "folder", 1: "folder"},
+            "scanned": {0: "folder"},
+            "is_created": {0: "file"},
+            "is_compressed": {0: "file", 1: "archive"},
+        }
+        # 处理新增事实
+        for fact in add_facts:
+            if fact.startswith("(not"):
+                continue
+            content = fact.strip("()")
+            parts = content.split()
+            if not parts:
+                continue
+            predicate = parts[0]
+            if predicate not in type_mapping:
+                continue
+            mapping = type_mapping[predicate]
+            for pos, obj in enumerate(parts[1:]):
+                if pos in mapping:
+                    obj_name = obj.strip("()")
+                    if not obj_name:
+                        continue
+                    typ = mapping[pos]
+                    self.objects[obj_name] = typ
+        # 处理删除事实：如果某个对象在所有事实中都不再出现，则删除？暂时保留，因为可能在其他事实中引用。
+        # 我们不做删除，因为对象可能在其他事实中仍然存在。
+        # 但我们可以扫描所有memory_facts来清理？暂时跳过。
+
     def reset(self):
         """重置内核状态"""
         self.memory_facts.clear()
+        self.objects.clear()
         self.current_domain = None
