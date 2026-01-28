@@ -32,7 +32,7 @@ def main():
         user_goal = " ".join(sys.argv[1:])
     else:
         # 默认任务
-        user_goal = "将root下的txt文件重命名为new.txt"
+        user_goal = "将root下的txt文件重命名为new.txt,然后移动到backup文件夹下,然后把backup文件夹下的其他文件都删了"
 
     print(f"[Main] 开始执行任务: {user_goal}\n")
     print("="*80 + "\n")

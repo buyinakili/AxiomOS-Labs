@@ -15,7 +15,7 @@ black>=23.0.0                # 代码格式化（强制执行统一风格）
 isort>=5.12.0                # 导入语句排序
 mypy>=1.5.0                  # 静态类型检查
 flake8>=6.0.0                # 代码风格与错误检查
-types-python-dotenv>=1.0.0   # python-dotenv 的类型提示
+# types-python-dotenv>=1.0.0   # python-dotenv 的类型提示（可选）
 
 # 可选依赖（增强功能，非必需）
 pydantic>=2.5.0              # 数据验证与设置管理（未来配置升级）

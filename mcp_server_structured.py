@@ -19,9 +19,9 @@ from mcp.server import NotificationOptions
 import mcp.server.stdio
 import asyncio
 
-# 配置logging，输出到stderr，级别为WARNING（减少冗长日志）
+# 配置logging，输出到stderr，级别为INFO（增加调试信息）
 logging.basicConfig(
-    level=logging.WARNING,
+    level=logging.INFO,
     format='%(name)s - %(levelname)s - %(message)s',
     stream=sys.stderr
 )
@@ -131,9 +131,46 @@ async def handle_call_tool(name: str, arguments: Dict[str, Any]) -> list:
     try:
         if name == "scan":
             folder = arguments["folder"]
-            message = f"扫描文件夹 {folder} 完成"
-            # PDDL delta: 添加(scanned folder)事实
-            pddl_delta = f"(scanned {folder})"
+            # 确定基础路径：假设 workspace 目录位于当前工作目录下
+            base_path = os.path.join(os.getcwd(), "workspace")
+            target_path = os.path.join(base_path, folder)
+            logger.info(f"扫描: folder={folder}, cwd={os.getcwd()}, base_path={base_path}, target_path={target_path}")
+            
+            if not os.path.exists(target_path):
+                logger.warning(f"目录不存在: {target_path}")
+                return create_error_response(f"目录 {folder} 不存在")
+            
+            try:
+                files = os.listdir(target_path)
+                logger.info(f"扫描到文件列表: {files}")
+            except Exception as e:
+                logger.error(f"扫描目录失败: {e}")
+                return create_error_response(f"无法扫描目录: {str(e)}")
+            
+            # 生成PDDL事实
+            found_facts = []
+            for f in files:
+                # 忽略系统文件
+                if f.startswith("."):
+                    continue
+                
+                # 转换文件名：将 '.' 替换为 '_dot_'
+                safe_name = f.replace(".", "_dot_")
+                
+                full_path = os.path.join(target_path, f)
+                if os.path.isfile(full_path):
+                    found_facts.append(f"(at {safe_name} {folder})")
+                elif os.path.isdir(full_path):
+                    # 双向连接性
+                    found_facts.append(f"(connected {folder} {safe_name})")
+                    found_facts.append(f"(connected {safe_name} {folder})")
+            
+            found_facts.append(f"(scanned {folder})")
+            
+            # 构建PDDL delta字符串，用空格分隔多个事实
+            pddl_delta = " ".join(found_facts)
+            message = f"扫描文件夹 {folder} 完成，发现 {len(files)} 个项目"
+            logger.info(f"扫描完成: {message}, pddl_delta={pddl_delta}")
             return create_success_response(message, pddl_delta)
             
         elif name == "move":
