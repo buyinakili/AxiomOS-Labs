@@ -19,10 +19,7 @@ from infrastructure.executor.mcp_executor import MCPActionExecutor
 from infrastructure.translator.pddl_translator import PDDLTranslator
 from infrastructure.domain.file_management_expert import FileManagementExpert
 
-# 技能
-from infrastructure.skills.filesystem_skills import (
-    ScanSkill, MoveSkill, GetAdminSkill, CompressSkill
-)
+# 技能（不再导入本地技能，仅使用MCP技能）
 
 
 class AxiomLabsFactory:
@@ -60,32 +57,14 @@ class AxiomLabsFactory:
             timeout=config.planning_timeout
         )
 
-        # 4. 创建执行器
-        executor: IExecutor
-        if config.use_mcp:
-            # 使用 MCP 执行器
-            server_args = config.mcp_server_args.strip().split() if config.mcp_server_args.strip() else ["mcp_server_structured.py"]
-            executor = MCPActionExecutor(
-                storage_path=config.storage_path,
-                server_command=config.mcp_server_command,
-                server_args=server_args
-            )
-            executor_type = "MCP"
-        else:
-            # 使用本地技能执行器
-            executor = ActionExecutor(
-                storage_path=config.storage_path
-            )
-
-            # 注册基础技能
-            executor.register_skill(ScanSkill())
-            executor.register_skill(MoveSkill())
-            executor.register_skill(GetAdminSkill())
-            executor.register_skill(CompressSkill())
-
-            # 动态加载扩展技能
-            AxiomLabsFactory._load_extended_skills(executor, config.skills_path)
-            executor_type = "本地"
+        # 4. 创建执行器（强制使用MCP执行器，忽略use_mcp配置）
+        server_args = config.mcp_server_args.strip().split() if config.mcp_server_args.strip() else ["mcp_server_structured.py"]
+        executor = MCPActionExecutor(
+            storage_path=config.storage_path,
+            server_command=config.mcp_server_command,
+            server_args=server_args
+        )
+        executor_type = "MCP"
 
         # 5. 创建领域专家
         domain_experts = {

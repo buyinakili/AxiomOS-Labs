@@ -60,6 +60,4 @@
     :effect (and (not (at ?f ?d))))
   
 
-;; --- AI Generated Action ---
-(:action rename_file :parameters (?old_file - file ?new_file - file ?folder - folder) :precondition (and (at ?old_file ?folder) (not (at ?new_file ?folder))) :effect (and (not (at ?old_file ?folder)) (at ?new_file ?folder) (is_created ?new_file)))
 )

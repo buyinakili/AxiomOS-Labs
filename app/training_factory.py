@@ -14,14 +14,11 @@ from infrastructure.pddl.pddl_modifier import PDDLModifier
 from infrastructure.llm.deepseek_client import DeepSeekClient
 from infrastructure.storage.file_storage import FileStorage
 from infrastructure.planner.lama_planner import LAMAPlanner
-from infrastructure.executor.action_executor import ActionExecutor
+from infrastructure.executor.mcp_executor import MCPActionExecutor
 from infrastructure.translator.pddl_translator import PDDLTranslator
 from infrastructure.domain.file_management_expert import FileManagementExpert
 
-# 技能
-from infrastructure.skills.filesystem_skills import (
-    ScanSkill, MoveSkill, GetAdminSkill, CompressSkill
-)
+# 技能（不再导入本地技能，使用MCP执行器）
 
 
 class TrainingFactory:
@@ -75,13 +72,14 @@ class TrainingFactory:
 
         # 6. 创建执行器工厂（用于创建新的执行器实例）
         def create_executor():
-            executor = ActionExecutor(storage_path=config.storage_path)
-            executor.register_skill(ScanSkill())
-            executor.register_skill(MoveSkill())
-            executor.register_skill(GetAdminSkill())
-            executor.register_skill(CompressSkill())
-            # 加载扩展技能
-            TrainingFactory._load_extended_skills(executor, config.skills_path)
+            # 使用MCP执行器，与主工厂保持一致
+            server_args = config.mcp_server_args.strip().split() if config.mcp_server_args.strip() else ["mcp_server_structured.py"]
+            executor = MCPActionExecutor(
+                storage_path=config.storage_path,
+                server_command=config.mcp_server_command,
+                server_args=server_args
+            )
+            # MCP执行器会自动从MCP服务器加载技能，无需手动注册
             return executor
 
         # 7. 创建翻译器工厂
@@ -145,14 +143,9 @@ class TrainingFactory:
 
     @staticmethod
     def _load_extended_skills(executor, skills_path: str):
-        """加载扩展技能"""
-        if not os.path.exists(skills_path):
-            return
-
-        for filename in os.listdir(skills_path):
-            if filename.endswith("_skill.py") and filename != "base_skill.py":
-                skill_file = os.path.join(skills_path, filename)
-                executor.register_skill_from_file(skill_file)
+        """加载扩展技能（MCP执行器自动从服务器加载，此方法保留为空）"""
+        # MCP执行器会自动从MCP服务器加载技能，无需手动加载
+        pass
 
     @staticmethod
     def promote_skill(skill_data: dict, config: Settings):
@@ -170,11 +163,15 @@ class TrainingFactory:
         pddl_modifier.add_action(main_domain_path, skill_data['pddl_patch'])
         print(f"  - PDDL Action 已追加到主 Domain。")
 
-        # 2. 移动Python文件到 infrastructure/skills/
+        # 2. 移动Python文件到 infrastructure/mcp_skills/ (MCP技能目录)
         new_filename = f"{skill_data['action_name']}_skill.py"
-        target_skill_path = os.path.join(config.skills_path, new_filename)
+        # 使用MCP技能目录而不是本地技能目录
+        mcp_skills_path = os.path.join(config.project_root, "infrastructure", "mcp_skills")
+        os.makedirs(mcp_skills_path, exist_ok=True)
+        target_skill_path = os.path.join(mcp_skills_path, new_filename)
 
         shutil.copy(skill_data['skill_file_path'], target_skill_path)
-        print(f"  - Python 脚本已部署到: {target_skill_path}")
+        print(f"  - Python 脚本已部署到MCP技能目录: {target_skill_path}")
+        print("  - 注意：需要重启MCP服务器才能加载新技能")
 
-        print("[Promoter] 晋升完成！重启系统后即可使用新能力。")
+        print("[Promoter] 晋升完成！重启MCP服务器后即可使用新能力。")
