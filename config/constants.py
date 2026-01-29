@@ -14,7 +14,7 @@ class Constants:
     # ========== 文件路径相关常量 ==========
     
     # 目录名称
-    TESTS_DIR_NAME = "tests"
+    PDDL_CONFIGS_DIR_NAME = "pddl_configs"  # 原tests目录，存放PDDL配置文件和回归注册表
     WORKSPACE_DIR_NAME = "workspace"
     SANDBOX_RUNS_DIR_NAME = "sandbox_runs"
     SKILLS_DIR_NAME = "skills"
@@ -136,7 +136,7 @@ class Constants:
     def get_path_constants(cls) -> Dict[str, str]:
         """获取路径相关常量"""
         return {
-            'TESTS_DIR_NAME': cls.TESTS_DIR_NAME,
+            'PDDL_CONFIGS_DIR_NAME': cls.PDDL_CONFIGS_DIR_NAME,
             'WORKSPACE_DIR_NAME': cls.WORKSPACE_DIR_NAME,
             'SANDBOX_RUNS_DIR_NAME': cls.SANDBOX_RUNS_DIR_NAME,
             'SKILLS_DIR_NAME': cls.SKILLS_DIR_NAME,

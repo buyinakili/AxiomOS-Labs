@@ -17,7 +17,7 @@ class FileStorage(IStorage):
         self.config = config or Settings.load_from_env()
         self.project_root = self.config.project_root
         self.storage_path = self.config.storage_path
-        self.tests_path = self.config.tests_path
+        self.pddl_configs_path = self.config.pddl_configs_path
         self.domain_cache = {}  # 缓存Domain内容
 
     def read_domain(self, domain_name: str = None) -> str:

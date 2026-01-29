@@ -26,8 +26,8 @@ class SandboxRollback:
     
     def __init__(self, project_root: str = "."):
         self.project_root = os.path.abspath(project_root)
-        self.registry_path = os.path.join(self.project_root, "tests", "regression_registry.json")
-        self.domain_path = os.path.join(self.project_root, "tests", "domain.pddl")
+        self.registry_path = os.path.join(self.project_root, "pddl_configs", "regression_registry.json")
+        self.domain_path = os.path.join(self.project_root, "pddl_configs", "domain.pddl")
         self.skills_dir = os.path.join(self.project_root, "infrastructure", "mcp_skills")
         
         self.last_skill_info = None
@@ -252,9 +252,9 @@ class SandboxRollback:
     def confirm_rollback(self) -> bool:
         print("\n" + "="*80)
         print("警告: 回退操作将永久删除以下内容:")
-        print("  1. 从 tests/domain.pddl 中移除对应的 action")
+        print("  1. 从 pddl_configs/domain.pddl 中移除对应的 action")
         print("  2. 删除 infrastructure/mcp_skills/ 中的技能文件")
-        print("  3. 从 tests/regression_registry.json 中移除对应条目")
+        print("  3. 从 pddl_configs/regression_registry.json 中移除对应条目")
         print("="*80)
         
         while True:

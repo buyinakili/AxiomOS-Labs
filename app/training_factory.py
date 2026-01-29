@@ -86,7 +86,7 @@ class TrainingFactory:
 
         # 11. 创建回归测试算法
         regression_algorithm = RegressionAlgorithm(
-            registry_path=os.path.join(config.tests_path, "regression_registry.json")
+            registry_path=os.path.join(config.pddl_configs_path, "regression_registry.json")
         )
         print(f"[Factory] 回归测试算法已创建")
 
@@ -178,7 +178,7 @@ class TrainingFactory:
 
         # 创建回归测试算法
         regression_algorithm = RegressionAlgorithm(
-            registry_path=os.path.join(config.tests_path, "regression_registry.json")
+            registry_path=os.path.join(config.pddl_configs_path, "regression_registry.json")
         )
         print(f"[Factory] 回归测试算法已创建")
 
@@ -215,8 +215,8 @@ class TrainingFactory:
         """
         print(f"\n[Promoter] 正在晋升技能: {skill_data['action_name']} ...")
 
-        # 1. 合并PDDL到tests/domain.pddl
-        main_domain_path = os.path.join(config.tests_path, "domain.pddl")
+        # 1. 合并PDDL到pddl_configs/domain.pddl
+        main_domain_path = os.path.join(config.pddl_configs_path, "domain.pddl")
         
         # 使用服务注册表创建PDDL修改器
         registry = ServiceRegistry.create_default_registry(config)

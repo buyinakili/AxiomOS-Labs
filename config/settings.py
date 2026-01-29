@@ -11,7 +11,7 @@ class Settings:
     """AxiomLabs系统配置"""
     # 项目路径
     project_root: str
-    tests_path: str
+    pddl_configs_path: str  # 原tests_path，存放PDDL配置文件和回归注册表
     storage_path: str
     sandbox_runs_path: str
     skills_path: str
@@ -80,7 +80,7 @@ class Settings:
         constants = Constants()
         
         # 构建路径（使用常量中的目录名）
-        tests_path = os.path.join(project_root, constants.TESTS_DIR_NAME)
+        pddl_configs_path = os.path.join(project_root, constants.PDDL_CONFIGS_DIR_NAME)
         storage_path = os.path.join(project_root, constants.WORKSPACE_DIR_NAME)
         sandbox_runs_path = os.path.join(project_root, constants.SANDBOX_RUNS_DIR_NAME)
         skills_path = os.path.join(project_root, constants.SKILLS_RELATIVE_PATH)
@@ -93,7 +93,7 @@ class Settings:
         # 从环境变量读取配置，使用常量作为默认值
         return cls(
             project_root=project_root,
-            tests_path=tests_path,
+            pddl_configs_path=pddl_configs_path,
             storage_path=storage_path,
             sandbox_runs_path=sandbox_runs_path,
             skills_path=skills_path,
@@ -145,8 +145,8 @@ class Settings:
         if not os.path.exists(self.storage_path):
             raise ValueError(f"存储路径不存在: {self.storage_path}")
 
-        if not os.path.exists(self.tests_path):
-            raise ValueError(f"测试路径不存在: {self.tests_path}")
+        if not os.path.exists(self.pddl_configs_path):
+            raise ValueError(f"PDDL配置路径不存在: {self.pddl_configs_path}")
 
         # 检查API Key
         if not self.llm_api_key:
@@ -170,13 +170,70 @@ class Settings:
 
         return True
     
+    def validate_critical(self) -> bool:
+        """
+        验证关键配置（快速检查，用于快速迭代期）
+        
+        只检查会导致系统崩溃的关键配置，不检查所有细节
+        
+        :return: 关键配置是否有效
+        :raises: ValueError 如果关键配置无效
+        """
+        errors = []
+        
+        # 1. 检查项目根目录
+        if not os.path.exists(self.project_root):
+            errors.append(f"❌ 项目根目录不存在: {self.project_root}")
+        
+        # 2. 检查LLM API密钥（不能是默认值）
+        if not self.llm_api_key or self.llm_api_key == "your-api-key":
+            errors.append("❌ LLM API密钥未配置（请设置DEEPSEEK_API_KEY环境变量）")
+        
+        # 3. 检查Fast-Downward（核心依赖）
+        if not os.path.exists(self.downward_path):
+            errors.append(f"❌ Fast-Downward路径不存在: {self.downward_path}")
+            errors.append(f"   请确保已安装Fast-Downward或设置正确的DOWNWARD_PATH")
+        
+        # 4. 检查pddl_configs目录（包含PDDL文件）
+        if not os.path.exists(self.pddl_configs_path):
+            errors.append(f"❌ PDDL配置目录不存在: {self.pddl_configs_path}")
+        else:
+            # 检查必要的PDDL文件
+            domain_file = os.path.join(self.pddl_configs_path, self.domain_file_name)
+            problem_file = os.path.join(self.pddl_configs_path, self.problem_file_name)
+            
+            if not os.path.exists(domain_file):
+                errors.append(f"❌ Domain文件不存在: {domain_file}")
+            if not os.path.exists(problem_file):
+                errors.append(f"❌ Problem文件不存在: {problem_file}")
+        
+        # 5. 检查workspace目录（会被自动创建，但需要检查权限）
+        try:
+            os.makedirs(self.storage_path, exist_ok=True)
+            test_file = os.path.join(self.storage_path, ".test_write")
+            with open(test_file, 'w') as f:
+                f.write("test")
+            os.remove(test_file)
+        except Exception as e:
+            errors.append(f"❌ 存储目录无写入权限: {self.storage_path} ({e})")
+        
+        if errors:
+            error_msg = "关键配置验证失败:\n" + "\n".join(errors)
+            error_msg += "\n\n💡 快速修复建议:"
+            error_msg += "\n1. 检查.env文件或环境变量"
+            error_msg += "\n2. 运行 'python tools/check_environment.py' 检查环境"
+            error_msg += "\n3. 参考 README.md 中的安装指南"
+            raise ValueError(error_msg)
+        
+        return True
+    
     def get_domain_file_path(self) -> str:
         """获取Domain文件完整路径"""
-        return os.path.join(self.tests_path, self.domain_file_name)
+        return os.path.join(self.pddl_configs_path, self.domain_file_name)
     
     def get_problem_file_path(self) -> str:
         """获取Problem文件完整路径"""
-        return os.path.join(self.tests_path, self.problem_file_name)
+        return os.path.join(self.pddl_configs_path, self.problem_file_name)
     
     def get_sandbox_domain_path(self, sandbox_dir: str) -> str:
         """获取沙盒中的Domain文件路径"""
@@ -194,7 +251,7 @@ class Settings:
         """将配置转换为字典"""
         return {
             'project_root': self.project_root,
-            'tests_path': self.tests_path,
+            'pddl_configs_path': self.pddl_configs_path,
             'storage_path': self.storage_path,
             'sandbox_runs_path': self.sandbox_runs_path,
             'skills_path': self.skills_path,

@@ -20,7 +20,7 @@ class SandboxManager(ISandboxManager):
         self.config = config or Settings.load_from_env()
         self.project_root = self.config.project_root
         self.main_storage_path = self.config.storage_path
-        self.tests_path = self.config.tests_path
+        self.pddl_configs_path = self.config.pddl_configs_path
         self.current_sandbox_path = None
         self.storage_path = None
 

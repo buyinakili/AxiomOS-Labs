@@ -25,16 +25,5 @@
                 "root"
             ]
         ]
-    },
-    {
-        "task_name": "重命名根目录txt文件",
-        "goal": "将root目录下的txt文件重命名为new.txt",
-        "setup_actions": [
-            [
-                "create_file",
-                "abc_dot_txt",
-                "root"
-            ]
-        ]
     }
 ]
