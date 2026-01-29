@@ -63,6 +63,22 @@ class EvolutionAlgorithm:
         for attempt in range(1, self.max_retries + 1):
             print(f"\n{'-'*20} 尝试次数: {attempt}/{self.max_retries} {'-'*20}")
 
+            # 每次尝试开始时：设置沙盒技能目录环境变量
+            import os
+            sandbox_skills_dir = os.path.join(sandbox_manager.get_sandbox_path(), "mcp_skills")
+            os.makedirs(sandbox_skills_dir, exist_ok=True)
+            os.environ["SANDBOX_MCP_SKILLS_DIR"] = sandbox_skills_dir
+            
+            # 更新MCP执行器的server_env（如果支持）
+            if hasattr(self.executor, 'server_env'):
+                self.executor.server_env["SANDBOX_MCP_SKILLS_DIR"] = sandbox_skills_dir
+            
+            print(f"[Evolution] 设置沙盒技能目录: {sandbox_skills_dir}")
+            
+            # 重启MCP客户端以应用新环境变量
+            if hasattr(self.executor, '_restart_mcp_client'):
+                self.executor._restart_mcp_client()
+
             # 重置环境（第2次及以后）
             if attempt > 1:
                 print("[Evolution] 正在重置物理沙盒并重新同步...")

@@ -147,15 +147,39 @@ def load_mcp_skills():
     
     return list(unique_skills.values())
 
-# 加载技能实例
-skill_instances = load_mcp_skills()
-skill_map = {skill.name: skill for skill in skill_instances}
+# 缓存技能实例和环境变量状态
+_skill_instances_cache = None
+_skill_map_cache = None
+_last_sandbox_dir = None
+
+def _reload_skills_if_needed():
+    """检查是否需要重新加载技能（环境变量变化时）"""
+    global _skill_instances_cache, _skill_map_cache, _last_sandbox_dir
+    
+    current_sandbox_dir = os.environ.get("SANDBOX_MCP_SKILLS_DIR")
+    
+    # 如果缓存为空或环境变量变化，重新加载
+    if (_skill_instances_cache is None or
+        _last_sandbox_dir != current_sandbox_dir):
+        
+        _last_sandbox_dir = current_sandbox_dir
+        _skill_instances_cache = load_mcp_skills()
+        _skill_map_cache = {skill.name: skill for skill in _skill_instances_cache}
+        logger.info(f"技能重新加载完成，共 {len(_skill_instances_cache)} 个技能")
+        return True
+    return False
+
+# 初始加载
+_reload_skills_if_needed()
 
 @server.list_tools()
 async def handle_list_tools() -> list:
-    """返回工具列表"""
+    """返回工具列表 - 只在需要时重新加载技能"""
+    # 检查是否需要重新加载
+    _reload_skills_if_needed()
+    
     tools = []
-    for skill in skill_instances:
+    for skill in _skill_instances_cache:
         tools.append(
             Tool(
                 name=skill.name,
@@ -170,10 +194,11 @@ async def handle_list_tools() -> list:
 async def handle_call_tool(name: str, arguments: Dict[str, Any]) -> list:
     """处理工具调用 - 返回结构化结果"""
     try:
-        if name not in skill_map:
+        # 确保使用最新的技能映射
+        if name not in _skill_map_cache:
             return create_error_response(f"未知工具: {name}")
         
-        skill = skill_map[name]
+        skill = _skill_map_cache[name]
         return await skill.execute(arguments)
         
     except KeyError as e:

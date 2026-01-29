@@ -29,9 +29,13 @@ class MCPActionExecutor(IExecutor):
         self.execution_history: List[str] = []
         self.server_command = server_command
         self.server_args = server_args or ["mcp_server_structured.py"]
+        # 保存当前环境变量，用于传递给MCP服务器子进程
+        import os
+        self.server_env = os.environ.copy()
         self.client = SimpleMCPClient(
             server_command=server_command,
-            server_args=self.server_args
+            server_args=self.server_args,
+            server_env=self.server_env
         )
         self._connected = False
         # 初始化日志已移除，由工厂统一输出
@@ -123,6 +127,13 @@ class MCPActionExecutor(IExecutor):
                 arguments["folder_name"] = args[1]
             else:
                 return ExecutionResult(False, "remove_file 需要 file_name, folder_name 参数")
+        elif tool_name == "rename_file":
+            if len(args) >= 3:
+                arguments["old_file"] = args[0]
+                arguments["new_file"] = args[1]
+                arguments["folder"] = args[2]
+            else:
+                return ExecutionResult(False, "rename_file 需要 old_file, new_file, folder 参数")
         else:
             # 通用处理：将位置参数映射为 arg0, arg1, ...
             for i, arg in enumerate(args):
@@ -198,13 +209,45 @@ class MCPActionExecutor(IExecutor):
             shutil.copy2(file_path, target_path)
             print(f"[MCP Executor] 沙盒技能已部署: {filename}")
             
-            # 设置环境变量，让 MCP 服务器知道沙盒技能目录
+            # 更新环境变量（当前进程和MCP服务器子进程）
+            self.server_env["SANDBOX_MCP_SKILLS_DIR"] = sandbox_mcp_skills_dir
             os.environ["SANDBOX_MCP_SKILLS_DIR"] = sandbox_mcp_skills_dir
+            
+            # 重启MCP客户端以应用新环境变量
+            self._restart_mcp_client()
             
             return True
         except Exception as e:
             print(f"[MCP Executor] 沙盒技能部署失败: {e}")
             return False
+    
+    def _restart_mcp_client(self):
+        """重启MCP客户端以应用新的环境变量和技能目录"""
+        print("[MCP Executor] 重启MCP客户端以应用沙盒技能...")
+        
+        # 断开当前连接
+        if self._connected:
+            self.client.disconnect()
+            self._connected = False
+        
+        # 重新创建MCP客户端，传递更新后的环境变量
+        from infrastructure.mcp_client import SimpleMCPClient
+        self.client = SimpleMCPClient(
+            server_command=self.server_command,
+            server_args=self.server_args,
+            server_env=self.server_env
+        )
+        
+        # 强制下次执行时重新连接
+        print("[MCP Executor] MCP客户端已重启，等待下次执行时连接")
+    
+    def _force_reconnect(self):
+        """强制重新连接MCP客户端以获取最新工具列表"""
+        if self._connected:
+            print("[MCP Executor] 重新连接MCP客户端以刷新工具列表...")
+            self.client.disconnect()
+            self._connected = False
+            # 下次执行时会自动重新连接
 
     def get_registered_skills(self) -> List[str]:
         """获取可用的工具名称"""
