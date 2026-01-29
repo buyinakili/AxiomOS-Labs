@@ -240,6 +240,27 @@ def create_error_response(error_message: str) -> List[Dict[str, Any]]:
 
 async def main():
     """主函数"""
+    # 记录启动时的环境变量状态
+    sandbox_storage_path = os.environ.get("SANDBOX_STORAGE_PATH")
+    sandbox_skills_dir = os.environ.get("SANDBOX_MCP_SKILLS_DIR")
+    
+    logger.info(f"MCP服务器启动 - 环境变量检查:")
+    logger.info(f"  SANDBOX_STORAGE_PATH: {sandbox_storage_path}")
+    logger.info(f"  SANDBOX_MCP_SKILLS_DIR: {sandbox_skills_dir}")
+    logger.info(f"  当前工作目录: {os.getcwd()}")
+    
+    # 检查是否为沙盒模式，如果是则改变工作目录到沙盒存储路径
+    if sandbox_storage_path and os.path.exists(sandbox_storage_path):
+        original_cwd = os.getcwd()
+        try:
+            os.chdir(sandbox_storage_path)
+            logger.info(f"切换到沙盒工作目录: {sandbox_storage_path}")
+            logger.info(f"当前工作目录: {os.getcwd()}")
+        except Exception as e:
+            logger.error(f"切换沙盒工作目录失败: {e}")
+    else:
+        logger.info("未设置SANDBOX_STORAGE_PATH或路径不存在，保持原工作目录")
+    
     # 使用stdio传输
     async with mcp.server.stdio.stdio_server() as (read_stream, write_stream):
         await server.run(

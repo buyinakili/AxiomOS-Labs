@@ -217,17 +217,36 @@ class PDDLTranslator(ITranslator):
             lines.append(line)
         return "\n    ".join(lines)
     
-    def _build_init_section(self, memory_facts: Set[str], objects: Dict[str, str] = None) -> str:
+    def _build_init_section(self, memory_facts: Set[str], objects: Dict[str, str] = None,
+                           base_init_facts: Set[str] = None) -> str:
         """
         构建PDDL init部分
         
-        :param memory_facts: 事实集合
+        :param memory_facts: 当前事实集合（增量变更）
         :param objects: 对象字典 {对象名: 类型}，用于生成静态连接事实
+        :param base_init_facts: 基础事实集合（第一轮init）
         :return: init部分字符串
         """
-        init_facts = []
+        # 如果有基础事实，以其为起点
+        if base_init_facts is not None:
+            # 深拷贝基础事实，过滤无效内容
+            init_facts = set()
+            for fact in base_init_facts:
+                fact_stripped = fact.strip()
+                if not fact_stripped:
+                    continue
+                # 忽略注释（以;开头）
+                if fact_stripped.startswith(";"):
+                    continue
+                # 忽略not事实
+                if fact_stripped.startswith("(not"):
+                    continue
+                init_facts.add(fact)
+        else:
+            init_facts = set()
+        
+        # 应用当前memory_facts（过滤无效内容）
         for fact in memory_facts:
-            # 忽略空字符串和只有空格的行
             fact_stripped = fact.strip()
             if not fact_stripped:
                 continue
@@ -237,7 +256,7 @@ class PDDLTranslator(ITranslator):
             # 忽略注释（以;开头）
             if fact_stripped.startswith(";"):
                 continue
-            init_facts.append(fact)
+            init_facts.add(fact)
         
         # 添加静态连接事实（仅针对file_management领域）
         if objects:
@@ -247,13 +266,15 @@ class PDDLTranslator(ITranslator):
             for f1 in folders:
                 for f2 in folders:
                     if f1 != f2:
-                        init_facts.append(f"(connected {f1} {f2})")
+                        init_facts.add(f"(connected {f1} {f2})")
         
-        # 添加total-cost
-        init_facts.append("(= (total-cost) 0)")
-        return "\n    ".join(init_facts)
+        # 添加total-cost（如果不存在）
+        init_facts.add("(= (total-cost) 0)")
+        
+        # 排序以确保一致性
+        return "\n    ".join(sorted(init_facts))
     
-    def translate(self, user_goal: str, memory_facts: Set[str], domain: str, execution_history: List[str] = None, iteration: int = 0, objects: Dict[str, str] = None) -> str:
+    def translate(self, user_goal: str, memory_facts: Set[str], domain: str, execution_history: List[str] = None, iteration: int = 0, objects: Dict[str, str] = None, base_init_facts: Set[str] = None) -> str:
         """
         将用户目标和当前事实转换为PDDL Problem
 
@@ -263,6 +284,7 @@ class PDDLTranslator(ITranslator):
         :param execution_history: 执行历史记录（动作名称列表），可选
         :param iteration: 当前迭代次数（0表示第一轮）
         :param objects: 累积的对象映射 {对象名: 类型}，用于后续轮次构建objects部分
+        :param base_init_facts: 基础init事实集合（第一轮init），用于增量更新
         :return: PDDL Problem内容
         """
         import sys
@@ -338,7 +360,7 @@ class PDDLTranslator(ITranslator):
                     if obj not in objects:
                         objects[obj] = typ
             objects_section = self._build_objects_section(objects)
-            init_section = self._build_init_section(memory_facts, objects)
+            init_section = self._build_init_section(memory_facts, objects, base_init_facts)
             
             prompt = f"""你现在是 AxiomLabs 的 [{domain}] 逻辑专家。
 任务：根据当前状态，仅生成PDDL Problem的(:goal ...)部分。
@@ -416,7 +438,7 @@ GOAL_FINISHED_ALREADY
             
             # 构建完整problem
             objects_section = self._build_objects_section(objects)
-            init_section = self._build_init_section(memory_facts, objects)
+            init_section = self._build_init_section(memory_facts, objects, base_init_facts)
             problem = f"(define (problem file-management-problem)\n  (:domain file-manager)\n  (:objects\n    {objects_section}\n  )\n  (:init\n    {init_section}\n  )\n  {goal_content}\n  (:metric minimize (total-cost))\n)"
             # 打印组装后的完整problem
             print("[翻译器] 组装完整PDDL Problem:")

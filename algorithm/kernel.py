@@ -40,6 +40,7 @@ class AxiomLabsKernel:
         self.max_iterations = max_iterations
         self.memory_facts: Set[str] = set()
         self.objects: Dict[str, str] = {}  # 对象名 -> 类型
+        self.base_init_facts: Set[str] = None  # 第一轮LLM生成的init基础事实
         self.current_domain: str = None
         self.sandbox_mode = sandbox_mode
         self.domain_path = domain_path
@@ -68,7 +69,8 @@ class AxiomLabsKernel:
                 self.current_domain,
                 execution_history,
                 iteration=i,
-                objects=self.objects if i > 0 else None
+                objects=self.objects if i > 0 else None,
+                base_init_facts=self.base_init_facts if i > 0 else None
             )
 
             # 检查是否已完成
@@ -188,6 +190,7 @@ class AxiomLabsKernel:
     def _update_objects_from_problem(self, problem_pddl: str):
         """
         从PDDL Problem中提取objects并更新self.objects
+        同时提取第一轮的init事实作为base_init_facts
         """
         # 正则匹配objects部分
         objects_match = re.search(r'\(:objects\s+(.*?)\s*\)', problem_pddl, re.DOTALL)
@@ -207,6 +210,54 @@ class AxiomLabsKernel:
                 for obj in objs:
                     self.objects[obj] = typ.strip()
         print(f"[Kernel] 从第一轮problem中提取objects: {self.objects}")
+        
+        # 提取init部分作为基础事实
+        init_match = re.search(r'\(:init\s+(.*?)\s*\)\s*\(:goal', problem_pddl, re.DOTALL)
+        if not init_match:
+            # 尝试另一种模式：init后面直接是goal
+            init_match = re.search(r'\(:init\s+(.*?)\s*\)\s*\(:goal', problem_pddl, re.DOTALL)
+        if not init_match:
+            # 最后尝试：init到文件末尾
+            init_match = re.search(r'\(:init\s+(.*?)\s*\)\s*\)', problem_pddl, re.DOTALL)
+        
+        if init_match:
+            init_text = init_match.group(1).strip()
+            # 分割init事实 - 使用更复杂的正则匹配嵌套括号
+            init_facts = set()
+            
+            # 方法：手动解析括号
+            stack = []
+            current_fact = []
+            in_fact = False
+            
+            for char in init_text:
+                if char == '(':
+                    if not in_fact:
+                        in_fact = True
+                    stack.append(char)
+                    current_fact.append(char)
+                elif char == ')':
+                    if stack:
+                        stack.pop()
+                        current_fact.append(char)
+                        if not stack:  # 匹配到最外层的右括号
+                            fact_str = ''.join(current_fact).strip()
+                            if fact_str and not fact_str.startswith(';'):
+                                init_facts.add(fact_str)
+                            current_fact = []
+                            in_fact = False
+                    else:
+                        # 不匹配的右括号，忽略
+                        pass
+                elif in_fact:
+                    current_fact.append(char)
+                # 忽略空格和换行
+            
+            # 清理：移除空事实和注释
+            init_facts = {f for f in init_facts if f and not f.startswith(';')}
+            
+            self.base_init_facts = init_facts
+            print(f"[Kernel] 从第一轮problem中提取{len(init_facts)}个基础init事实")
 
     def _update_objects_from_facts(self, add_facts: Set[str], del_facts: Set[str]):
         """

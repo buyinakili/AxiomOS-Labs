@@ -180,7 +180,7 @@ class MCPActionExecutor(IExecutor):
 
     def register_skill_from_file(self, file_path: str) -> bool:
         """
-        在沙盒模式下，将技能文件部署到沙盒的 MCP 技能目录
+        在沙盒模式下，将技能文件部署到沙盒的 skills 目录
         
         注意：此方法仅在沙盒环境中有效，用于进化算法临时加载新技能
         """
@@ -197,29 +197,34 @@ class MCPActionExecutor(IExecutor):
         if not os.path.exists(file_path):
             return False
         
-        # 在沙盒存储路径下创建 mcp_skills 目录
-        sandbox_mcp_skills_dir = os.path.join(self.storage_path, "mcp_skills")
-        os.makedirs(sandbox_mcp_skills_dir, exist_ok=True)
+        # 关键修复：不再复制文件，因为evolution.py已经将文件创建在正确的位置
+        # 我们只需要设置环境变量并重启MCP客户端
         
-        # 复制技能文件到沙盒 MCP 技能目录
-        filename = os.path.basename(file_path)
-        target_path = os.path.join(sandbox_mcp_skills_dir, filename)
+        # 获取技能文件所在的目录（应该是沙盒的skills目录）
+        skill_dir = os.path.dirname(file_path)
         
-        try:
-            shutil.copy2(file_path, target_path)
-            print(f"[MCP Executor] 沙盒技能已部署: {filename}")
-            
-            # 更新环境变量（当前进程和MCP服务器子进程）
-            self.server_env["SANDBOX_MCP_SKILLS_DIR"] = sandbox_mcp_skills_dir
-            os.environ["SANDBOX_MCP_SKILLS_DIR"] = sandbox_mcp_skills_dir
-            
-            # 重启MCP客户端以应用新环境变量
-            self._restart_mcp_client()
-            
-            return True
-        except Exception as e:
-            print(f"[MCP Executor] 沙盒技能部署失败: {e}")
-            return False
+        # 验证技能目录是否是沙盒的skills目录
+        # 检查路径中是否包含"skills"并且是沙盒路径的一部分
+        if "skills" not in skill_dir:
+            print(f"[MCP Executor] 警告：技能文件不在skills目录中: {file_path}")
+            # 仍然尝试使用，但记录警告
+        
+        print(f"[MCP Executor] 使用现有技能文件: {file_path}")
+        
+        # 设置环境变量（当前进程和MCP服务器子进程）
+        self.server_env["SANDBOX_MCP_SKILLS_DIR"] = skill_dir
+        os.environ["SANDBOX_MCP_SKILLS_DIR"] = skill_dir
+        
+        # 设置沙盒存储路径环境变量
+        # 优先使用当前进程的环境变量（由evolution.py设置），如果不存在则使用self.storage_path
+        sandbox_storage_path = os.environ.get("SANDBOX_STORAGE_PATH", self.storage_path)
+        self.server_env["SANDBOX_STORAGE_PATH"] = sandbox_storage_path
+        os.environ["SANDBOX_STORAGE_PATH"] = sandbox_storage_path
+        
+        # 重启MCP客户端以应用新环境变量
+        self._restart_mcp_client()
+        
+        return True
     
     def _restart_mcp_client(self):
         """重启MCP客户端以应用新的环境变量和技能目录"""
@@ -258,6 +263,8 @@ class MCPActionExecutor(IExecutor):
     def set_storage_path(self, path: str):
         """设置存储路径（用于兼容性）"""
         self.storage_path = path
+        # 同时更新server_env中的SANDBOX_STORAGE_PATH环境变量
+        self.server_env["SANDBOX_STORAGE_PATH"] = path
 
     def disconnect(self):
         """断开 MCP 连接"""

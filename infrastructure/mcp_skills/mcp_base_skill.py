@@ -78,18 +78,27 @@ class MCPBaseSkill(ABC):
         """
         安全构建路径，将PDDL格式的文件名（可能包含 _dot_）转换回实际文件名
         
+        注意：MCP服务器在沙盒模式下会改变工作目录到沙盒存储路径
+        因此这里直接使用当前工作目录作为基础路径
+        
         :param parts: 路径组成部分
         :return: 绝对路径
         """
-        # 当前工作目录下的workspace作为根目录
-        base = os.path.join(os.getcwd(), "workspace")
+        # 由于MCP服务器已经改变了工作目录到沙盒存储路径（如果设置了SANDBOX_STORAGE_PATH）
+        # 或者保持在项目根目录（正常模式）
+        # 这里直接使用当前工作目录作为基础路径
+        
         safe_parts = []
         for part in parts:
             # 将 _dot_ 替换回 .
             if '_dot_' in part:
                 part = part.replace('_dot_', '.')
             safe_parts.append(part)
-        return os.path.join(base, *safe_parts)
+        
+        # 构建完整路径
+        full_path = os.path.join(os.getcwd(), *safe_parts)
+        logger.debug(f"_safe_path: 工作目录={os.getcwd()}, 部分={parts}, 完整路径={full_path}")
+        return full_path
     
     def _to_pddl_name(self, filename: str) -> str:
         """将实际文件名转换为PDDL格式（. 替换为 _dot_）"""

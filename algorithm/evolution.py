@@ -63,17 +63,23 @@ class EvolutionAlgorithm:
         for attempt in range(1, self.max_retries + 1):
             print(f"\n{'-'*20} 尝试次数: {attempt}/{self.max_retries} {'-'*20}")
 
-            # 每次尝试开始时：设置沙盒技能目录环境变量
+            # 每次尝试开始时：设置沙盒技能目录和存储路径环境变量
             import os
-            sandbox_skills_dir = os.path.join(sandbox_manager.get_sandbox_path(), "mcp_skills")
+            sandbox_skills_dir = os.path.join(sandbox_manager.get_sandbox_path(), "skills")
             os.makedirs(sandbox_skills_dir, exist_ok=True)
             os.environ["SANDBOX_MCP_SKILLS_DIR"] = sandbox_skills_dir
+            
+            # 设置沙盒存储路径环境变量（用于MCP技能的文件操作隔离）
+            sandbox_storage_path = sandbox_manager.get_storage_path()
+            os.environ["SANDBOX_STORAGE_PATH"] = sandbox_storage_path
             
             # 更新MCP执行器的server_env（如果支持）
             if hasattr(self.executor, 'server_env'):
                 self.executor.server_env["SANDBOX_MCP_SKILLS_DIR"] = sandbox_skills_dir
+                self.executor.server_env["SANDBOX_STORAGE_PATH"] = sandbox_storage_path
             
             print(f"[Evolution] 设置沙盒技能目录: {sandbox_skills_dir}")
+            print(f"[Evolution] 设置沙盒存储路径: {sandbox_storage_path}")
             
             # 重启MCP客户端以应用新环境变量
             if hasattr(self.executor, '_restart_mcp_client'):
@@ -87,9 +93,6 @@ class EvolutionAlgorithm:
                 # 清空执行历史（重置环境后）
                 self.executor.clear_execution_history()
 
-                # 重置所有技能的base_path
-                self.executor.set_storage_path(sandbox_manager.get_storage_path())
-
                 # 执行setup动作（只允许基础技能）
                 base_skills = ["scan", "move", "get_admin", "remove_file", "compress"]
                 for action in task_data.get('setup_actions', []):
@@ -99,6 +102,9 @@ class EvolutionAlgorithm:
                 # 注意：这里不清空历史，让翻译器能看到setup动作（特别是scan）
                 # 审计时会通过history_before_validation来区分setup动作和验证动作
                 print("[Evolution] 沙盒环境重置完毕。")
+            
+            # 每次尝试都需要设置存储路径（包括第一次）
+            self.executor.set_storage_path(sandbox_manager.get_storage_path())
 
             try:
                 # 0. 备份当前Domain状态用于回滚
