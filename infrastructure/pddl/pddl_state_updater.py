@@ -27,26 +27,98 @@ class PDDLDelta:
         - "-(at file folder)"  # 单个删除
         - "(is_created archive) (at archive folder)"  # 多个添加
         - "-(at file folder) (scanned root)"  # 混合
+        - "(and (not (at file folder)) (at new_file folder) (is_created new_file))"  # and表达式
         
         注意: 事实之间用空格分隔，删除事实以 '-' 开头
         """
         add_facts = []
         del_facts = []
         
-        # 使用正则表达式匹配 PDDL 事实（包括括号）
-        # 匹配模式: 可选减号后跟括号内的内容
-        pattern = r'(-?)\s*(\([^)]+\))'
-        matches = re.findall(pattern, delta_str)
+        # 处理空字符串
+        delta_str = delta_str.strip()
+        if not delta_str:
+            return cls(add_facts=add_facts, del_facts=del_facts)
         
-        for sign, fact in matches:
-            fact = fact.strip()
-            if sign == '-':
-                del_facts.append(fact)
-            else:
-                add_facts.append(fact)
+        # 处理 and 表达式
+        if delta_str.startswith('(and ') and delta_str.endswith(')'):
+            # 提取 and 内部的内容（去掉 "(and " 和 ")"）
+            inner = delta_str[5:-1].strip()
+            # and 表达式内部可能包含多个事实，需要分别解析
+            # 使用括号计数法分割内部的事实
+            inner_facts = []
+            i = 0
+            while i < len(inner):
+                if inner[i] == '(':
+                    # 找到匹配的右括号
+                    paren_count = 0
+                    j = i
+                    while j < len(inner):
+                        if inner[j] == '(':
+                            paren_count += 1
+                        elif inner[j] == ')':
+                            paren_count -= 1
+                            if paren_count == 0:
+                                # 找到完整的事实
+                                fact = inner[i:j+1]
+                                inner_facts.append(fact)
+                                i = j  # 移动索引到右括号之后
+                                break
+                        j += 1
+                i += 1
+            
+            # 分别解析每个内部事实
+            for fact_str in inner_facts:
+                fact_delta = cls.parse(fact_str)
+                add_facts.extend(fact_delta.add_facts)
+                del_facts.extend(fact_delta.del_facts)
+            
+            return cls(add_facts=add_facts, del_facts=del_facts)
         
-        # 如果没有匹配到，尝试简单分割（向后兼容）
-        if not matches and delta_str.strip():
+        # 处理 not 表达式
+        if delta_str.startswith('(not ') and delta_str.endswith(')'):
+            # 提取 not 内部的内容（去掉 "(not " 和 ")"）
+            inner = delta_str[5:-1].strip()
+            # not 表达式表示删除事实
+            return cls(add_facts=[], del_facts=[inner])
+        
+        # 使用括号计数法提取所有完整的事实（包括嵌套括号）
+        i = 0
+        while i < len(delta_str):
+            if delta_str[i] == '(':
+                # 找到匹配的右括号
+                paren_count = 0
+                j = i
+                while j < len(delta_str):
+                    if delta_str[j] == '(':
+                        paren_count += 1
+                    elif delta_str[j] == ')':
+                        paren_count -= 1
+                        if paren_count == 0:
+                            # 找到完整的事实
+                            fact = delta_str[i:j+1]
+                            # 检查是否有前导减号（删除标记）
+                            # 向前查找减号，忽略空格
+                            k = i - 1
+                            has_minus = False
+                            while k >= 0 and delta_str[k].isspace():
+                                k -= 1
+                            if k >= 0 and delta_str[k] == '-':
+                                has_minus = True
+                                # 继续向前查找可能的连续减号
+                                while k >= 0 and delta_str[k] == '-':
+                                    k -= 1
+                            
+                            if has_minus:
+                                del_facts.append(fact)
+                            else:
+                                add_facts.append(fact)
+                            i = j  # 移动索引到右括号之后
+                            break
+                    j += 1
+            i += 1
+        
+        # 如果没有找到任何事实，尝试简单分割（向后兼容）
+        if not add_facts and not del_facts and delta_str.strip():
             parts = delta_str.strip().split()
             for part in parts:
                 if part.startswith('-(') and part.endswith(')'):

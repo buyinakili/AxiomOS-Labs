@@ -227,8 +227,15 @@ class PDDLTranslator(ITranslator):
         """
         init_facts = []
         for fact in memory_facts:
+            # 忽略空字符串和只有空格的行
+            fact_stripped = fact.strip()
+            if not fact_stripped:
+                continue
             # 忽略not事实，因为not在PDDL init中不能出现
-            if fact.startswith("(not"):
+            if fact_stripped.startswith("(not"):
+                continue
+            # 忽略注释（以;开头）
+            if fact_stripped.startswith(";"):
                 continue
             init_facts.append(fact)
         
