@@ -227,21 +227,29 @@ class MCPActionExecutor(IExecutor):
         return True
     
     def _restart_mcp_client(self):
-        """重启MCP客户端以应用新的环境变量和技能目录"""
+        """重启MCP客户端以应用新的环境变量和技能目录，带异常处理"""
         print("[MCP Executor] 重启MCP客户端以应用沙盒技能...")
         
-        # 断开当前连接
+        # 断开当前连接（忽略任何异常）
         if self._connected:
-            self.client.disconnect()
-            self._connected = False
+            try:
+                self.client.disconnect()
+            except Exception as e:
+                print(f"[MCP Executor] 断开连接时发生异常（忽略）: {e}", file=sys.stderr)
+            finally:
+                self._connected = False
         
         # 重新创建MCP客户端，传递更新后的环境变量
-        from infrastructure.mcp_client import SimpleMCPClient
-        self.client = SimpleMCPClient(
-            server_command=self.server_command,
-            server_args=self.server_args,
-            server_env=self.server_env
-        )
+        try:
+            from infrastructure.mcp_client import SimpleMCPClient
+            self.client = SimpleMCPClient(
+                server_command=self.server_command,
+                server_args=self.server_args,
+                server_env=self.server_env
+            )
+        except Exception as e:
+            print(f"[MCP Executor] 创建MCP客户端失败: {e}", file=sys.stderr)
+            # 即使失败，也继续执行，因为可能后续连接会恢复
         
         # 强制下次执行时重新连接
         print("[MCP Executor] MCP客户端已重启，等待下次执行时连接")

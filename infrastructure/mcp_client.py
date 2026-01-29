@@ -360,11 +360,25 @@ class MCPClient:
                 pass
     
     async def disconnect(self):
-        """断开连接"""
+        """断开连接，带2秒超时"""
         async with self._connection_lock:
-            await self._cleanup()
-            self.status = ConnectionStatus.DISCONNECTED
-            # 静默断开，不输出日志
+            try:
+                # 设置超时，防止清理操作无限挂起
+                await asyncio.wait_for(self._cleanup(), timeout=2.0)
+            except asyncio.TimeoutError:
+                # 超时后强制清理资源
+                print("[MCP] 断开连接超时，强制清理", file=sys.stderr)
+                # 忽略进一步清理，直接重置状态
+                self._stdio_context = None
+                self._session_context = None
+                self.session = None
+                self.read_stream = None
+                self.write_stream = None
+            except Exception as e:
+                print(f"[MCP] 断开连接异常: {e}", file=sys.stderr)
+            finally:
+                self.status = ConnectionStatus.DISCONNECTED
+                # 静默断开，不输出日志
     
     def get_tool_names(self) -> List[str]:
         """获取所有工具名称"""
@@ -404,11 +418,22 @@ class SimpleMCPClient:
         )
     
     def disconnect(self):
-        """同步断开连接"""
+        """同步断开连接，带超时和异常处理"""
         if self._loop:
-            self._loop.run_until_complete(self.client.disconnect())
-            self._loop.close()
-            self._loop = None
+            try:
+                # 设置整体超时，防止run_until_complete无限等待
+                future = asyncio.wait_for(self.client.disconnect(), timeout=3.0)
+                self._loop.run_until_complete(future)
+            except asyncio.TimeoutError:
+                print("[SimpleMCPClient] 断开连接超时，强制关闭事件循环", file=sys.stderr)
+            except Exception as e:
+                print(f"[SimpleMCPClient] 断开连接异常: {e}", file=sys.stderr)
+            finally:
+                try:
+                    self._loop.close()
+                except Exception:
+                    pass
+                self._loop = None
     
     def get_tool_names(self) -> List[str]:
         """获取工具名称"""
