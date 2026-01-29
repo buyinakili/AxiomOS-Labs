@@ -81,9 +81,14 @@ class EvolutionAlgorithm:
             print(f"[Evolution] 设置沙盒技能目录: {sandbox_skills_dir}")
             print(f"[Evolution] 设置沙盒存储路径: {sandbox_storage_path}")
             
-            # 重启MCP客户端以应用新环境变量
+            # 重启MCP客户端以应用新环境变量（仅第一次尝试，确保服务器使用正确的环境变量）
             if hasattr(self.executor, '_restart_mcp_client'):
-                self.executor._restart_mcp_client()
+                if attempt == 1:
+                    print("[Evolution] 第一次尝试，重启MCP客户端以确保环境变量生效")
+                    self.executor._restart_mcp_client()
+                else:
+                    # 后续尝试不重启，依赖服务器动态加载
+                    pass
 
             # 重置环境（第2次及以后）
             if attempt > 1:

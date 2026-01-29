@@ -25,12 +25,21 @@ class MCPActionExecutor(IExecutor):
             server_command: MCP 服务器命令
             server_args: MCP 服务器参数
         """
-        self.storage_path = storage_path or ""
+        import os
+        # 优先使用环境变量中的SANDBOX_STORAGE_PATH，如果不存在则使用传入的storage_path
+        sandbox_storage_path = os.environ.get("SANDBOX_STORAGE_PATH")
+        if sandbox_storage_path:
+            self.storage_path = sandbox_storage_path
+            print(f"[MCP Executor] 使用环境变量SANDBOX_STORAGE_PATH: {self.storage_path}")
+        else:
+            self.storage_path = storage_path or ""
+            if self.storage_path:
+                print(f"[MCP Executor] 使用传入的storage_path: {self.storage_path}")
+        
         self.execution_history: List[str] = []
         self.server_command = server_command
         self.server_args = server_args or ["mcp_server_structured.py"]
         # 保存当前环境变量，用于传递给MCP服务器子进程
-        import os
         self.server_env = os.environ.copy()
         self.client = SimpleMCPClient(
             server_command=server_command,
@@ -198,7 +207,7 @@ class MCPActionExecutor(IExecutor):
             return False
         
         # 关键修复：不再复制文件，因为evolution.py已经将文件创建在正确的位置
-        # 我们只需要设置环境变量并重启MCP客户端
+        # 我们只需要设置环境变量并重启MCP客户端（仅在技能目录变化时）
         
         # 获取技能文件所在的目录（应该是沙盒的skills目录）
         skill_dir = os.path.dirname(file_path)
@@ -211,6 +220,10 @@ class MCPActionExecutor(IExecutor):
         
         print(f"[MCP Executor] 使用现有技能文件: {file_path}")
         
+        # 检查技能目录是否发生变化
+        current_skill_dir = self.server_env.get("SANDBOX_MCP_SKILLS_DIR")
+        skill_dir_changed = current_skill_dir != skill_dir
+        
         # 设置环境变量（当前进程和MCP服务器子进程）
         self.server_env["SANDBOX_MCP_SKILLS_DIR"] = skill_dir
         os.environ["SANDBOX_MCP_SKILLS_DIR"] = skill_dir
@@ -221,8 +234,14 @@ class MCPActionExecutor(IExecutor):
         self.server_env["SANDBOX_STORAGE_PATH"] = sandbox_storage_path
         os.environ["SANDBOX_STORAGE_PATH"] = sandbox_storage_path
         
-        # 重启MCP客户端以应用新环境变量
-        self._restart_mcp_client()
+        # 仅在技能目录变化时才重启MCP客户端
+        if skill_dir_changed:
+            print(f"[MCP Executor] 技能目录变化 ({current_skill_dir} -> {skill_dir})，重启MCP客户端")
+            self._restart_mcp_client()
+        else:
+            print(f"[MCP Executor] 技能目录未变化，跳过重启，依赖服务器动态加载")
+            # 可选：强制刷新工具列表（轻量级）
+            self._force_reconnect()
         
         return True
     

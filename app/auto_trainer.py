@@ -79,13 +79,13 @@ def run_training_round(components, config, task_data, round_num, total_rounds):
     """运行一轮训练"""
     print(f"\n{'='*30} 第 {round_num}/{total_rounds} 轮训练 {'='*30}\n")
 
-    # 创建新的执行器
+    # 创建新的执行器（使用已设置的环境变量）
     base_executor = components['create_executor']()
     base_executor.clear_execution_history()
 
-    # 2. 创建干净沙盒
-    sandbox = components['sandbox_manager'].create_sandbox()
-    print(f"[Trainer] 沙盒已创建: {sandbox}\n")
+    # 2. 使用已创建的沙盒（不再重复创建）
+    sandbox_path = components['sandbox_manager'].get_sandbox_path()
+    print(f"[Trainer] 使用已创建的沙盒: {sandbox_path}\n")
 
     # 3. 运行进化
     print("[Trainer] 启动进化循环...")
@@ -183,10 +183,26 @@ def main():
     success_count = 0
     
     for round_num in range(1, args.rounds + 1):
-        # 获取任务数据
+        # 1. 先创建沙盒环境
+        print(f"\n[Trainer] 正在为第 {round_num}/{args.rounds} 轮创建沙盒环境...")
+        sandbox = components['sandbox_manager'].create_sandbox()
+        
+        # 2. 设置环境变量，确保MCP服务器能正确识别沙盒路径
+        sandbox_storage_path = components['sandbox_manager'].get_storage_path()
+        sandbox_skills_dir = os.path.join(components['sandbox_manager'].get_sandbox_path(), "skills")
+        
+        os.environ['SANDBOX_STORAGE_PATH'] = sandbox_storage_path
+        os.environ['SANDBOX_MCP_SKILLS_DIR'] = sandbox_skills_dir
+        
+        print(f"[Trainer] 环境变量已设置:")
+        print(f"  - SANDBOX_STORAGE_PATH: {sandbox_storage_path}")
+        print(f"  - SANDBOX_MCP_SKILLS_DIR: {sandbox_skills_dir}")
+        
+        # 3. 创建执行器（使用正确的环境变量）
         base_executor = components['create_executor']()
         base_executor.clear_execution_history()
         
+        # 4. 获取任务数据
         if args.task:
             # 指定任务模式
             print(f"[Trainer] 正在根据用户目标生成具体任务...")
@@ -206,7 +222,7 @@ def main():
         print(f"[Trainer] 任务生成成功: {task_data['goal']}")
         print(f"[Trainer] 理由: {task_data['rationale']}\n")
         
-        # 运行训练轮次
+        # 5. 运行训练轮次（传入已创建的沙盒信息）
         if run_training_round(components, config, task_data, round_num, args.rounds):
             success_count += 1
 

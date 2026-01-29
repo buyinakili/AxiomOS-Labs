@@ -1,0 +1,40 @@
+[
+    {
+        "task_name": "move_txt_to_backup",
+        "goal": "将root下的txt文件移动到backup下",
+        "setup_actions": [
+            [
+                "create",
+                "test_dot_txt",
+                "root"
+            ]
+        ]
+    },
+    {
+        "task_name": "delete_txt_files",
+        "goal": "删除root下的txt文件",
+        "setup_actions": [
+            [
+                "create",
+                "test_dot_txt",
+                "root"
+            ],
+            [
+                "create",
+                "another_dot_txt",
+                "root"
+            ]
+        ]
+    },
+    {
+        "task_name": "重命名根目录txt文件",
+        "goal": "将root目录下的txt文件重命名为new.txt",
+        "setup_actions": [
+            [
+                "create_file",
+                "abc_dot_txt",
+                "root"
+            ]
+        ]
+    }
+]
