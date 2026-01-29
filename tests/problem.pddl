@@ -1,16 +1,17 @@
-(define (problem move-report)
+(define (problem file-management-problem)
   (:domain file-manager)
-  (:objects 
-    report_pdf - file
+  (:objects
     root backup - folder
+    abc_dot_txt - file
   )
-
   (:init
-    (at report_pdf root)
+    (= (total-cost) 0)
+    (at abc_dot_txt backup)
+    (connected backup root)
     (connected root backup)
+    (has_admin_rights)
+    (scanned root)
   )
-
-  (:goal (and
-    (at report_pdf backup)
-  ))
+  (:goal (and (at abc_dot_txt backup)))
+  (:metric minimize (total-cost))
 )

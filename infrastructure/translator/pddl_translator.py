@@ -1,9 +1,11 @@
 """PDDL翻译器实现"""
-from typing import Set, Dict, List
+from typing import Set, Dict, List, Optional
 from interface.translator import ITranslator
 from interface.llm import ILLM
 from interface.storage import IStorage
 from interface.domain_expert import IDomainExpert
+from config.settings import Settings
+from config.constants import CONSTANTS
 
 
 class PDDLTranslator(ITranslator):
@@ -13,7 +15,8 @@ class PDDLTranslator(ITranslator):
         self,
         llm: ILLM,
         storage: IStorage,
-        domain_experts: Dict[str, IDomainExpert]
+        domain_experts: Dict[str, IDomainExpert],
+        config: Optional[Settings] = None
     ):
         """
         初始化翻译器
@@ -21,10 +24,12 @@ class PDDLTranslator(ITranslator):
         :param llm: LLM客户端
         :param storage: 存储接口
         :param domain_experts: 领域专家字典 {domain_name: expert}
+        :param config: 配置对象，如果为None则使用默认配置
         """
         self.llm = llm
         self.storage = storage
         self.domain_experts = domain_experts
+        self.config = config or Settings.load_from_env()
 
     def _should_debug_prompt(self) -> bool:
         """检查是否应该打印调试信息"""
@@ -60,7 +65,9 @@ class PDDLTranslator(ITranslator):
         )
 
         choice = response.strip().lower()
-        return choice if choice in self.domain_experts else domain_names[0]
+        # 使用配置中的默认领域名称作为后备
+        default_domain = self.config.domain_name if self.config.domain_name in self.domain_experts else domain_names[0]
+        return choice if choice in self.domain_experts else default_domain
 
     def _extract_objects_from_facts(self, memory_facts: Set[str], domain: str) -> Dict[str, str]:
         """
@@ -70,8 +77,8 @@ class PDDLTranslator(ITranslator):
         :param domain: 领域名称（目前仅支持file_management）
         :return: 字典 {对象名: 类型}
         """
-        # 目前只处理file_management领域
-        if domain != "file_management":
+        # 目前只处理配置中指定的默认领域
+        if domain != self.config.domain_name:
             # 默认返回空，后续可根据需要扩展
             return {}
         
@@ -127,8 +134,8 @@ class PDDLTranslator(ITranslator):
         :param domain: 领域名称
         :return: 字典 {对象名: 类型}
         """
-        # 目前只处理file_management领域
-        if domain != "file_management":
+        # 目前只处理配置中指定的默认领域
+        if domain != self.config.domain_name:
             return {}
         
         # 类型映射：谓词 -> 参数位置 -> 类型
@@ -439,7 +446,14 @@ GOAL_FINISHED_ALREADY
             # 构建完整problem
             objects_section = self._build_objects_section(objects)
             init_section = self._build_init_section(memory_facts, objects, base_init_facts)
-            problem = f"(define (problem file-management-problem)\n  (:domain file-manager)\n  (:objects\n    {objects_section}\n  )\n  (:init\n    {init_section}\n  )\n  {goal_content}\n  (:metric minimize (total-cost))\n)"
+            # 使用配置中的领域名称生成PDDL domain和problem名称
+            # 将下划线替换为连字符以符合PDDL命名约定
+            pddl_domain_name = self.config.domain_name.replace('_', '-')
+            # 如果domain_name是"file_management"，则PDDL domain应该是"file-manager"（保持向后兼容）
+            if self.config.domain_name == "file_management":
+                pddl_domain_name = "file-manager"
+            problem_name = f"{self.config.domain_name.replace('_', '-')}-problem"
+            problem = f"(define (problem {problem_name})\n  (:domain {pddl_domain_name})\n  (:objects\n    {objects_section}\n  )\n  (:init\n    {init_section}\n  )\n  {goal_content}\n  (:metric minimize (total-cost))\n)"
             # 打印组装后的完整problem
             print("[翻译器] 组装完整PDDL Problem:")
             print(problem)

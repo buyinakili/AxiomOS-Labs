@@ -2,28 +2,30 @@
 import subprocess
 import os
 import re
-from typing import Tuple
+from typing import Tuple, Optional
 from interface.planner import IPlanner, PlanningResult
+from config.settings import Settings
 
 
 class LAMAPlanner(IPlanner):
     """基于Fast Downward的LAMA规划器实现"""
 
-    def __init__(self, downward_path: str, temp_dir: str, timeout: int = 30):
+    def __init__(self, config: Optional[Settings] = None, temp_dir: str = None, timeout: int = None):
         """
         初始化LAMA规划器
 
-        :param downward_path: fast-downward.py的绝对路径
-        :param temp_dir: 临时文件目录
-        :param timeout: 规划超时时间（秒）
+        :param config: 系统配置，如果为None则使用默认配置
+        :param temp_dir: 临时文件目录，如果为None则使用配置中的temp_dir
+        :param timeout: 规划超时时间（秒），如果为None则使用配置中的planning_timeout
         """
-        self.downward_path = downward_path
-        self.temp_dir = temp_dir
-        self.timeout = timeout
+        self.config = config or Settings.load_from_env()
+        self.downward_path = self.config.downward_path
+        self.temp_dir = temp_dir or self.config.temp_dir
+        self.timeout = timeout or self.config.planning_timeout
         self.alias = "lama-first"
 
         # 确保临时目录存在
-        os.makedirs(temp_dir, exist_ok=True)
+        os.makedirs(self.temp_dir, exist_ok=True)
 
     def plan(self, domain_content: str, problem_content: str) -> PlanningResult:
         """
@@ -141,7 +143,7 @@ class LAMAPlanner(IPlanner):
                 cmd,
                 capture_output=True,
                 text=True,
-                timeout=15,
+                timeout=self.timeout,  # 使用配置的超时值
                 cwd=os.path.dirname(os.path.abspath(self.downward_path))  # 在downward目录中执行
             )
 

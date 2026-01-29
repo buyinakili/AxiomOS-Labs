@@ -1,6 +1,6 @@
 """进化算法 - 纯算法逻辑"""
 import traceback
-from typing import Dict
+from typing import Dict, Optional
 from interface.executor import IExecutor
 from interface.planner import IPlanner
 from interface.sandbox_manager import ISandboxManager
@@ -8,6 +8,8 @@ from interface.pddl_modifier import IPDDLModifier
 from interface.llm import ILLM
 from interface.storage import IStorage
 from interface.translator import ITranslator
+from config.settings import Settings
+from config.constants import CONSTANTS
 
 
 class EvolutionAlgorithm:
@@ -21,7 +23,8 @@ class EvolutionAlgorithm:
         executor: IExecutor,
         planner: IPlanner,
         pddl_modifier: IPDDLModifier,
-        max_retries: int = 4
+        max_retries: int = None,
+        config: Optional[Settings] = None
     ):
         """
         初始化进化算法
@@ -29,12 +32,15 @@ class EvolutionAlgorithm:
         :param executor: 执行器接口
         :param planner: 规划器接口
         :param pddl_modifier: PDDL修改器接口
-        :param max_retries: 最大重试次数
+        :param max_retries: 最大重试次数，如果为None则使用配置中的值
+        :param config: 配置对象，如果为None则使用默认配置
         """
         self.executor = executor
         self.planner = planner
         self.pddl_modifier = pddl_modifier
-        self.max_retries = max_retries
+        self.config = config or Settings.load_from_env()
+        # 使用配置中的值作为默认值
+        self.max_retries = max_retries if max_retries is not None else self.config.evolution_max_retries
         self.history_errors = []
 
     def evolve(
@@ -99,7 +105,7 @@ class EvolutionAlgorithm:
                 self.executor.clear_execution_history()
 
                 # 执行setup动作（只允许基础技能）
-                base_skills = ["scan", "move", "get_admin", "remove_file", "compress"]
+                base_skills = CONSTANTS.BASE_SKILLS
                 for action in task_data.get('setup_actions', []):
                     if action[0] in base_skills:
                         self.executor.execute(" ".join(action))
@@ -176,7 +182,7 @@ class EvolutionAlgorithm:
                     planner=self.planner,
                     executor=self.executor,
                     storage=storage,
-                    max_iterations=5,
+                    max_iterations=self.config.max_iterations,
                     sandbox_mode=True,  # 启用沙盒模式
                     domain_path=domain_path  # 指定沙盒domain文件路径
                 )

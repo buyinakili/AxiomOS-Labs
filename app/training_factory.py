@@ -43,31 +43,19 @@ class TrainingFactory:
         print(f"[Factory] LLM客户端已创建")
 
         # 2. 创建存储
-        storage = FileStorage(
-            project_root=config.project_root,
-            storage_path=config.storage_path,
-            tests_path=config.tests_path
-        )
+        storage = FileStorage(config=config)
         print(f"[Factory] 存储已创建")
 
         # 3. 创建沙盒管理器
-        sandbox_manager = SandboxManager(
-            project_root=config.project_root,
-            storage_path=config.storage_path,
-            tests_path=config.tests_path
-        )
+        sandbox_manager = SandboxManager(config=config)
         print(f"[Factory] 沙盒管理器已创建")
 
         # 4. 创建PDDL修改器
-        pddl_modifier = PDDLModifier()
+        pddl_modifier = PDDLModifier(config=config)
         print(f"[Factory] PDDL修改器已创建")
 
         # 5. 创建规划器
-        planner = LAMAPlanner(
-            downward_path=config.downward_path,
-            temp_dir=config.temp_dir,
-            timeout=config.planning_timeout
-        )
+        planner = LAMAPlanner(config=config)
         print(f"[Factory] 规划器已创建")
 
         # 6. 创建执行器工厂（用于创建新的执行器实例）
@@ -85,21 +73,18 @@ class TrainingFactory:
         # 7. 创建翻译器工厂
         def create_translator():
             domain_experts = {
-                "file_management": FileManagementExpert()
+                config.domain_name: FileManagementExpert(config=config)
             }
             return PDDLTranslator(
                 llm=llm,
                 storage=storage,
-                domain_experts=domain_experts
+                domain_experts=domain_experts,
+                config=config
             )
 
         # 8. 创建规划器工厂
         def create_planner():
-            return LAMAPlanner(
-                downward_path=config.downward_path,
-                temp_dir=config.temp_dir,
-                timeout=config.planning_timeout
-            )
+            return LAMAPlanner(config=config)
 
         # 9. 创建进化算法
         executor_for_evolution = create_executor()
@@ -107,7 +92,8 @@ class TrainingFactory:
             executor=executor_for_evolution,
             planner=planner,
             pddl_modifier=pddl_modifier,
-            max_retries=config.max_evolution_retries
+            max_retries=config.max_evolution_retries,
+            config=config
         )
         print(f"[Factory] 进化算法已创建")
 
@@ -159,7 +145,7 @@ class TrainingFactory:
 
         # 1. 合并PDDL到tests/domain.pddl
         main_domain_path = os.path.join(config.tests_path, "domain.pddl")
-        pddl_modifier = PDDLModifier()
+        pddl_modifier = PDDLModifier(config=config)
         pddl_modifier.add_action(main_domain_path, skill_data['pddl_patch'])
         print(f"  - PDDL Action 已追加到主 Domain。")
 

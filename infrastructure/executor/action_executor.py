@@ -1,21 +1,24 @@
 """动作执行器实现"""
 import os
 import importlib.util
-from typing import Dict, List
+from typing import Dict, List, Optional
 from interface.executor import IExecutor, ExecutionResult
 from interface.skill import ISkill
+from config.settings import Settings
 
 
 class ActionExecutor(IExecutor):
     """动作执行器实现"""
 
-    def __init__(self, storage_path: str = None):
+    def __init__(self, config: Optional[Settings] = None, storage_path: str = None):
         """
         初始化执行器
 
-        :param storage_path: 物理存储路径
+        :param config: 系统配置，如果为None则使用默认配置
+        :param storage_path: 物理存储路径，如果为None则使用配置中的storage_path
         """
-        self.storage_path = storage_path or ""
+        self.config = config or Settings.load_from_env()
+        self.storage_path = storage_path or self.config.storage_path
         self.skills: Dict[str, ISkill] = {}
         self.execution_history: List[str] = []
 
@@ -92,13 +95,15 @@ class ActionExecutor(IExecutor):
             module = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(module)
 
-            # 查找技能类
-            if hasattr(module, 'GeneratedSkill'):
-                skill_instance = module.GeneratedSkill()
+            # 查找技能类（使用配置中的类名）
+            skill_class_name = self.config.generated_skill_class_name
+            if hasattr(module, skill_class_name):
+                skill_class = getattr(module, skill_class_name)
+                skill_instance = skill_class()
                 self.register_skill(skill_instance)
                 return True
             else:
-                print(f"[Executor] 文件中未找到GeneratedSkill类: {file_path}")
+                print(f"[Executor] 文件中未找到{skill_class_name}类: {file_path}")
                 return False
 
         except Exception as e:

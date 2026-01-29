@@ -1,10 +1,12 @@
 """AxiomLabs核心内核算法"""
 import re
-from typing import Set, Dict
+from typing import Set, Dict, Optional
 from interface.translator import ITranslator
 from interface.planner import IPlanner
 from interface.executor import IExecutor
 from interface.storage import IStorage
+from config.settings import Settings
+from config.constants import CONSTANTS
 
 
 class AxiomLabsKernel:
@@ -18,9 +20,10 @@ class AxiomLabsKernel:
         planner: IPlanner,
         executor: IExecutor,
         storage: IStorage,
-        max_iterations: int = 5,
+        max_iterations: int = None,
         sandbox_mode: bool = False,
-        domain_path: str = None
+        domain_path: str = None,
+        config: Optional[Settings] = None
     ):
         """
         初始化内核
@@ -29,15 +32,18 @@ class AxiomLabsKernel:
         :param planner: 规划器接口
         :param executor: 执行器接口
         :param storage: 存储接口
-        :param max_iterations: 最大迭代次数
+        :param max_iterations: 最大迭代次数，如果为None则使用配置中的值
         :param sandbox_mode: 是否沙盒模式（读取domain_exp.pddl）
         :param domain_path: 自定义domain文件路径（覆盖默认）
+        :param config: 配置对象，如果为None则使用默认配置
         """
         self.translator = translator
         self.planner = planner
         self.executor = executor
         self.storage = storage
-        self.max_iterations = max_iterations
+        self.config = config or Settings.load_from_env()
+        # 使用配置中的值作为默认值
+        self.max_iterations = max_iterations if max_iterations is not None else self.config.max_iterations
         self.memory_facts: Set[str] = set()
         self.objects: Dict[str, str] = {}  # 对象名 -> 类型
         self.base_init_facts: Set[str] = None  # 第一轮LLM生成的init基础事实
@@ -264,14 +270,8 @@ class AxiomLabsKernel:
         根据新增/删除的事实更新objects
         目前仅支持file_management领域
         """
-        # 类型映射：谓词 -> 参数位置 -> 类型
-        type_mapping = {
-            "at": {0: "file", 1: "folder"},
-            "connected": {0: "folder", 1: "folder"},
-            "scanned": {0: "folder"},
-            "is_created": {0: "file"},
-            "is_compressed": {0: "file", 1: "archive"},
-        }
+        # 使用常量中的类型映射
+        type_mapping = CONSTANTS.TYPE_MAPPING
         # 处理新增事实
         for fact in add_facts:
             if fact.startswith("(not"):

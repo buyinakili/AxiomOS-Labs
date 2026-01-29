@@ -1,11 +1,21 @@
 """PDDL修改器实现"""
 import re
 import os
+from typing import Optional
 from interface.pddl_modifier import IPDDLModifier
+from config.settings import Settings
 
 
 class PDDLModifier(IPDDLModifier):
     """PDDL修改器实现"""
+    
+    def __init__(self, config: Optional[Settings] = None):
+        """
+        初始化PDDL修改器
+        
+        :param config: 系统配置，如果为None则使用默认配置
+        """
+        self.config = config or Settings.load_from_env()
 
     def add_action(self, domain_path: str, action_pddl: str) -> bool:
         """
@@ -44,7 +54,7 @@ class PDDLModifier(IPDDLModifier):
         # 在最后一个括号之前插入，保留原来的闭合括号
         new_content = (
             content[:last_bracket_index] +
-            "\n;; --- AI Generated Action ---\n" +
+            f"\n{self.config.pddl_ai_generated_comment}\n" +
             action_pddl + "\n" +
             content[last_bracket_index:]  # 保留原来的闭合括号
         )

@@ -59,10 +59,14 @@ class MCPClient:
     
     def __init__(
         self,
-        server_command: str = "python3",
+        server_command: str = None,
         server_args: List[str] = None,
         server_env: Dict[str, str] = None,
-        timeout: int = 30
+        connection_timeout: float = None,
+        session_init_timeout: float = None,
+        tool_list_timeout: float = None,
+        tool_call_timeout: float = None,
+        disconnect_timeout: float = None
     ):
         """
         初始化 MCP 客户端
@@ -71,15 +75,29 @@ class MCPClient:
             server_command: 服务器命令 (如 "python3")
             server_args: 服务器参数 (如 ["mcp_server_structured.py"])
             server_env: 服务器环境变量
-            timeout: 连接超时时间（秒）
+            connection_timeout: 连接超时时间（秒）
+            session_init_timeout: 会话初始化超时（秒）
+            tool_list_timeout: 获取工具列表超时（秒）
+            tool_call_timeout: 工具调用超时（秒）
+            disconnect_timeout: 断开连接超时（秒）
         """
         if not MCP_AVAILABLE:
             raise MCPClientError("MCP 库未安装，请运行: pip install mcp")
         
-        self.server_command = server_command
-        self.server_args = server_args or ["mcp_server_structured.py"]
+        # 导入配置
+        from config.settings import Settings
+        config = Settings.load_from_env()
+        
+        self.server_command = server_command or config.mcp_server_command
+        self.server_args = server_args or [config.mcp_server_args]
         self.server_env = server_env or {}
-        self.timeout = timeout
+        
+        # 使用配置中的超时值，如果提供了参数则使用参数
+        self.connection_timeout = connection_timeout or config.mcp_connection_timeout
+        self.session_init_timeout = session_init_timeout or config.mcp_connection_timeout
+        self.tool_list_timeout = tool_list_timeout or config.mcp_connection_timeout
+        self.tool_call_timeout = tool_call_timeout or config.mcp_tool_call_timeout
+        self.disconnect_timeout = disconnect_timeout or config.mcp_disconnect_timeout
         
         self.status = ConnectionStatus.DISCONNECTED
         self.session: Optional[ClientSession] = None
@@ -99,7 +117,7 @@ class MCPClient:
         await self.disconnect()
     
     async def connect(self) -> bool:
-        """连接到 MCP 服务器，5秒超时"""
+        """连接到 MCP 服务器，使用配置的超时值"""
         async with self._connection_lock:
             if self.status == ConnectionStatus.CONNECTED:
                 return True
@@ -116,40 +134,40 @@ class MCPClient:
                 
                 # 创建 stdio 客户端上下文管理器
                 self._stdio_context = stdio_client(server_params)
-                # 进入上下文，获取流（5秒超时）
+                # 进入上下文，获取流（使用连接超时）
                 try:
                     self.read_stream, self.write_stream = await asyncio.wait_for(
                         self._stdio_context.__aenter__(),
-                        timeout=5.0
+                        timeout=self.connection_timeout
                     )
                 except asyncio.TimeoutError:
-                    print("[MCP] 连接超时: stdio上下文进入超时", file=sys.stderr)
-                    raise MCPClientError("连接超时: stdio上下文进入超时")
+                    print(f"[MCP] 连接超时: stdio上下文进入超时 ({self.connection_timeout}秒)", file=sys.stderr)
+                    raise MCPClientError(f"连接超时: stdio上下文进入超时 ({self.connection_timeout}秒)")
                 
-                # 创建客户端会话上下文管理器（5秒超时）
+                # 创建客户端会话上下文管理器（使用会话初始化超时）
                 self.session = ClientSession(self.read_stream, self.write_stream)
                 try:
                     self._session_context = await asyncio.wait_for(
                         self.session.__aenter__(),
-                        timeout=5.0
+                        timeout=self.session_init_timeout
                     )
                 except asyncio.TimeoutError:
-                    print("[MCP] 连接超时: 客户端会话创建超时", file=sys.stderr)
-                    raise MCPClientError("连接超时: 客户端会话创建超时")
+                    print(f"[MCP] 连接超时: 客户端会话创建超时 ({self.session_init_timeout}秒)", file=sys.stderr)
+                    raise MCPClientError(f"连接超时: 客户端会话创建超时 ({self.session_init_timeout}秒)")
                 
-                # 初始化会话（5秒超时）
+                # 初始化会话（使用会话初始化超时）
                 try:
-                    await asyncio.wait_for(self.session.initialize(), timeout=5.0)
+                    await asyncio.wait_for(self.session.initialize(), timeout=self.session_init_timeout)
                 except asyncio.TimeoutError:
-                    print("[MCP] 连接超时: 会话初始化超时", file=sys.stderr)
-                    raise MCPClientError("连接超时: 会话初始化超时")
+                    print(f"[MCP] 连接超时: 会话初始化超时 ({self.session_init_timeout}秒)", file=sys.stderr)
+                    raise MCPClientError(f"连接超时: 会话初始化超时 ({self.session_init_timeout}秒)")
                 
-                # 获取工具列表（5秒超时）
+                # 获取工具列表（使用工具列表超时）
                 try:
-                    await asyncio.wait_for(self._refresh_tools(), timeout=5.0)
+                    await asyncio.wait_for(self._refresh_tools(), timeout=self.tool_list_timeout)
                 except asyncio.TimeoutError:
-                    print("[MCP] 连接超时: 获取工具列表超时", file=sys.stderr)
-                    raise MCPClientError("连接超时: 获取工具列表超时")
+                    print(f"[MCP] 连接超时: 获取工具列表超时 ({self.tool_list_timeout}秒)", file=sys.stderr)
+                    raise MCPClientError(f"连接超时: 获取工具列表超时 ({self.tool_list_timeout}秒)")
                 
                 self.status = ConnectionStatus.CONNECTED
                 print(f"[MCP] 连接成功 ({len(self.tools)} 工具)", file=sys.stderr)
@@ -233,7 +251,7 @@ class MCPClient:
     
     async def call_tool(self, tool_name: str, arguments: Dict[str, Any]) -> MCPResponse:
         """
-        调用 MCP 工具，5秒超时
+        调用 MCP 工具，使用配置的超时值
         
         Args:
             tool_name: 工具名称
@@ -246,18 +264,18 @@ class MCPClient:
             raise MCPClientError("会话未建立，请先调用 connect()")
         
         try:
-            # 调用工具（5秒超时）
+            # 调用工具（使用工具调用超时）
             try:
                 result = await asyncio.wait_for(
                     self.session.call_tool(tool_name, arguments),
-                    timeout=5.0
+                    timeout=self.tool_call_timeout
                 )
             except asyncio.TimeoutError:
-                print(f"[MCP] 工具调用超时: {tool_name}", file=sys.stderr)
+                print(f"[MCP] 工具调用超时: {tool_name} ({self.tool_call_timeout}秒)", file=sys.stderr)
                 return MCPResponse(
                     success=False,
-                    message=f"工具调用超时: {tool_name}",
-                    error="Timeout after 5 seconds"
+                    message=f"工具调用超时: {tool_name} ({self.tool_call_timeout}秒)",
+                    error=f"Timeout after {self.tool_call_timeout} seconds"
                 )
             
             # 检查是否是 CallToolResult 对象
@@ -360,14 +378,14 @@ class MCPClient:
                 pass
     
     async def disconnect(self):
-        """断开连接，带2秒超时"""
+        """断开连接，使用配置的超时值"""
         async with self._connection_lock:
             try:
                 # 设置超时，防止清理操作无限挂起
-                await asyncio.wait_for(self._cleanup(), timeout=2.0)
+                await asyncio.wait_for(self._cleanup(), timeout=self.disconnect_timeout)
             except asyncio.TimeoutError:
                 # 超时后强制清理资源
-                print("[MCP] 断开连接超时，强制清理", file=sys.stderr)
+                print(f"[MCP] 断开连接超时 ({self.disconnect_timeout}秒)，强制清理", file=sys.stderr)
                 # 忽略进一步清理，直接重置状态
                 self._stdio_context = None
                 self._session_context = None
@@ -422,10 +440,11 @@ class SimpleMCPClient:
         if self._loop:
             try:
                 # 设置整体超时，防止run_until_complete无限等待
-                future = asyncio.wait_for(self.client.disconnect(), timeout=3.0)
+                # 使用客户端的断开连接超时值
+                future = asyncio.wait_for(self.client.disconnect(), timeout=self.client.disconnect_timeout)
                 self._loop.run_until_complete(future)
             except asyncio.TimeoutError:
-                print("[SimpleMCPClient] 断开连接超时，强制关闭事件循环", file=sys.stderr)
+                print(f"[SimpleMCPClient] 断开连接超时 ({self.client.disconnect_timeout}秒)，强制关闭事件循环", file=sys.stderr)
             except Exception as e:
                 print(f"[SimpleMCPClient] 断开连接异常: {e}", file=sys.stderr)
             finally:

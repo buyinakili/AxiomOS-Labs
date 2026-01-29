@@ -44,18 +44,10 @@ class AxiomLabsFactory:
         )
 
         # 2. 创建存储
-        storage: IStorage = FileStorage(
-            project_root=config.project_root,
-            storage_path=config.storage_path,
-            tests_path=config.tests_path
-        )
+        storage: IStorage = FileStorage(config=config)
 
         # 3. 创建规划器
-        planner: IPlanner = LAMAPlanner(
-            downward_path=config.downward_path,
-            temp_dir=config.temp_dir,
-            timeout=config.planning_timeout
-        )
+        planner: IPlanner = LAMAPlanner(config=config)
 
         # 4. 创建执行器（强制使用MCP执行器，忽略use_mcp配置）
         server_args = config.mcp_server_args.strip().split() if config.mcp_server_args.strip() else ["mcp_server_structured.py"]
@@ -68,14 +60,15 @@ class AxiomLabsFactory:
 
         # 5. 创建领域专家
         domain_experts = {
-            "file_management": FileManagementExpert()
+            "file_management": FileManagementExpert(config=config)
         }
 
         # 6. 创建翻译器
         translator: ITranslator = PDDLTranslator(
             llm=llm,
             storage=storage,
-            domain_experts=domain_experts
+            domain_experts=domain_experts,
+            config=config
         )
 
         # 7. 组装内核
@@ -84,7 +77,7 @@ class AxiomLabsFactory:
             planner=planner,
             executor=executor,
             storage=storage,
-            max_iterations=config.max_iterations
+            config=config
         )
 
         # 简洁日志

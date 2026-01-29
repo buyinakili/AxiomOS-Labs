@@ -250,16 +250,40 @@ async def main():
     logger.info(f"  当前工作目录: {os.getcwd()}")
     
     # 检查是否为沙盒模式，如果是则改变工作目录到沙盒存储路径
+    target_working_dir = None
+    
+    # 优先使用SANDBOX_STORAGE_PATH
     if sandbox_storage_path and os.path.exists(sandbox_storage_path):
+        target_working_dir = sandbox_storage_path
+        logger.info(f"使用沙盒存储路径作为工作目录: {target_working_dir}")
+    else:
+        # 生产模式：尝试使用默认的workspace目录
+        # 检查当前工作目录下是否有workspace目录
+        current_cwd = os.getcwd()
+        workspace_dir = os.path.join(current_cwd, "workspace")
+        if os.path.exists(workspace_dir):
+            target_working_dir = workspace_dir
+            logger.info(f"使用默认workspace目录作为工作目录: {target_working_dir}")
+        else:
+            # 如果当前目录没有workspace，尝试在项目根目录下查找
+            # 假设MCP服务器是从项目根目录运行的
+            project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            workspace_dir = os.path.join(project_root, "workspace")
+            if os.path.exists(workspace_dir):
+                target_working_dir = workspace_dir
+                logger.info(f"使用项目根目录下的workspace目录作为工作目录: {target_working_dir}")
+            else:
+                logger.info("未找到workspace目录，保持原工作目录")
+    
+    # 切换到目标工作目录
+    if target_working_dir:
         original_cwd = os.getcwd()
         try:
-            os.chdir(sandbox_storage_path)
-            logger.info(f"切换到沙盒工作目录: {sandbox_storage_path}")
+            os.chdir(target_working_dir)
+            logger.info(f"切换到工作目录: {target_working_dir}")
             logger.info(f"当前工作目录: {os.getcwd()}")
         except Exception as e:
-            logger.error(f"切换沙盒工作目录失败: {e}")
-    else:
-        logger.info("未设置SANDBOX_STORAGE_PATH或路径不存在，保持原工作目录")
+            logger.error(f"切换工作目录失败: {e}")
     
     # 使用stdio传输
     async with mcp.server.stdio.stdio_server() as (read_stream, write_stream):

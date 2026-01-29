@@ -1,14 +1,23 @@
 """文件管理领域专家"""
-from typing import List
+from typing import List, Optional
 from interface.domain_expert import IDomainExpert
+from config.settings import Settings
 
 
 class FileManagementExpert(IDomainExpert):
     """文件管理领域专家实现"""
+    
+    def __init__(self, config: Optional[Settings] = None):
+        """
+        初始化领域专家
+        
+        :param config: 系统配置，如果为None则使用默认配置
+        """
+        self.config = config or Settings.load_from_env()
 
     @property
     def domain_name(self) -> str:
-        return "file_management"
+        return self.config.domain_name
 
     def get_rules(self) -> List[str]:
         """
@@ -28,4 +37,4 @@ class FileManagementExpert(IDomainExpert):
         ]
 
     def get_domain_file(self) -> str:
-        return "domain.pddl"
+        return self.config.domain_file_name
