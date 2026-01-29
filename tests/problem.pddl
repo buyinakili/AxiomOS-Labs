@@ -1,17 +1,15 @@
 (define (problem file-management-problem)
   (:domain file-manager)
   (:objects
-    root backup - folder
-    abc_dot_txt - file
+    root - folder
+    txt_dot_txt new_dot_txt abc_dot_txt - file
   )
   (:init
     (= (total-cost) 0)
-    (at abc_dot_txt backup)
-    (connected backup root)
-    (connected root backup)
-    (has_admin_rights)
+    (at abc_dot_txt root)
+    (connected root root)
     (scanned root)
   )
-  (:goal (and (at abc_dot_txt backup)))
+  (:goal (and (not (at txt_dot_txt root)) (at new_dot_txt root)))
   (:metric minimize (total-cost))
 )

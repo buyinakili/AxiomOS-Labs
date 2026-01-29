@@ -1,28 +1,17 @@
-"""训练模式依赖注入工厂"""
+"""训练模式依赖注入工厂 - 使用服务注册表解耦"""
 import os
 import shutil
 from config.settings import Settings
+from app.service_registry import ServiceRegistry
 
 # 算法层
 from algorithm.evolution import EvolutionAlgorithm
 from algorithm.curriculum import CurriculumAlgorithm
 from algorithm.regression import RegressionAlgorithm
 
-# 工程层
-from infrastructure.sandbox.sandbox_manager import SandboxManager
-from infrastructure.pddl.pddl_modifier import PDDLModifier
-from infrastructure.llm.deepseek_client import DeepSeekClient
-from infrastructure.storage.file_storage import FileStorage
-from infrastructure.planner.lama_planner import LAMAPlanner
-from infrastructure.executor.mcp_executor import MCPActionExecutor
-from infrastructure.translator.pddl_translator import PDDLTranslator
-from infrastructure.domain.file_management_expert import FileManagementExpert
-
-# 技能（不再导入本地技能，使用MCP执行器）
-
 
 class TrainingFactory:
-    """训练模式工厂 - 负责组装训练相关组件"""
+    """训练模式工厂 - 使用服务注册表解耦具体实现"""
 
     @staticmethod
     def create_training_components(config: Settings):
@@ -34,34 +23,23 @@ class TrainingFactory:
         """
         config.validate()
 
-        # 1. 创建LLM客户端
-        llm = DeepSeekClient(
-            api_key=config.llm_api_key,
-            base_url=config.llm_base_url,
-            model=config.llm_model
-        )
-        print(f"[Factory] LLM客户端已创建")
+        # 创建服务注册表
+        registry = ServiceRegistry.create_default_registry(config)
 
-        # 2. 创建存储
-        storage = FileStorage(config=config)
-        print(f"[Factory] 存储已创建")
+        # 从注册表获取核心服务
+        llm = registry.get('llm')
+        storage = registry.get('storage')
+        sandbox_manager = registry.get('sandbox_manager')
+        pddl_modifier = registry.get('pddl_modifier')
+        planner = registry.get('planner')
 
-        # 3. 创建沙盒管理器
-        sandbox_manager = SandboxManager(config=config)
-        print(f"[Factory] 沙盒管理器已创建")
-
-        # 4. 创建PDDL修改器
-        pddl_modifier = PDDLModifier(config=config)
-        print(f"[Factory] PDDL修改器已创建")
-
-        # 5. 创建规划器
-        planner = LAMAPlanner(config=config)
-        print(f"[Factory] 规划器已创建")
+        print(f"[Factory] 核心服务已创建")
 
         # 6. 创建执行器工厂（用于创建新的执行器实例）
         def create_executor():
             # 使用MCP执行器，与主工厂保持一致
             server_args = config.mcp_server_args.strip().split() if config.mcp_server_args.strip() else ["mcp_server_structured.py"]
+            from infrastructure.executor.mcp_executor import MCPActionExecutor
             executor = MCPActionExecutor(
                 storage_path=config.storage_path,
                 server_command=config.mcp_server_command,
@@ -73,8 +51,9 @@ class TrainingFactory:
         # 7. 创建翻译器工厂
         def create_translator():
             domain_experts = {
-                config.domain_name: FileManagementExpert(config=config)
+                config.domain_name: registry.get('domain_expert.file_management')
             }
+            from infrastructure.translator.pddl_translator import PDDLTranslator
             return PDDLTranslator(
                 llm=llm,
                 storage=storage,
@@ -84,6 +63,7 @@ class TrainingFactory:
 
         # 8. 创建规划器工厂
         def create_planner():
+            from infrastructure.planner.lama_planner import LAMAPlanner
             return LAMAPlanner(config=config)
 
         # 9. 创建进化算法
@@ -128,6 +108,98 @@ class TrainingFactory:
         }
 
     @staticmethod
+    def create_training_components_with_registry(registry: ServiceRegistry):
+        """
+        使用自定义服务注册表创建训练组件
+
+        :param registry: 服务注册表实例
+        :return: 组件字典
+        """
+        # 从注册表获取配置
+        config = registry.get('config')
+        config.validate()
+
+        # 从注册表获取核心服务
+        llm = registry.get('llm')
+        storage = registry.get('storage')
+        sandbox_manager = registry.get('sandbox_manager')
+        pddl_modifier = registry.get('pddl_modifier')
+        planner = registry.get('planner')
+
+        print(f"[Factory] 核心服务已创建")
+
+        # 创建执行器工厂
+        def create_executor():
+            # 使用MCP执行器，与主工厂保持一致
+            server_args = config.mcp_server_args.strip().split() if config.mcp_server_args.strip() else ["mcp_server_structured.py"]
+            from infrastructure.executor.mcp_executor import MCPActionExecutor
+            executor = MCPActionExecutor(
+                storage_path=config.storage_path,
+                server_command=config.mcp_server_command,
+                server_args=server_args
+            )
+            return executor
+
+        # 创建翻译器工厂
+        def create_translator():
+            domain_experts = {
+                config.domain_name: registry.get('domain_expert.file_management')
+            }
+            from infrastructure.translator.pddl_translator import PDDLTranslator
+            return PDDLTranslator(
+                llm=llm,
+                storage=storage,
+                domain_experts=domain_experts,
+                config=config
+            )
+
+        # 创建规划器工厂
+        def create_planner():
+            from infrastructure.planner.lama_planner import LAMAPlanner
+            return LAMAPlanner(config=config)
+
+        # 创建进化算法
+        executor_for_evolution = create_executor()
+        evolution_algorithm = EvolutionAlgorithm(
+            executor=executor_for_evolution,
+            planner=planner,
+            pddl_modifier=pddl_modifier,
+            max_retries=config.max_evolution_retries,
+            config=config
+        )
+        print(f"[Factory] 进化算法已创建")
+
+        # 创建课程算法
+        curriculum_algorithm = CurriculumAlgorithm(
+            llm=llm,
+            storage=storage
+        )
+        print(f"[Factory] 课程算法已创建")
+
+        # 创建回归测试算法
+        regression_algorithm = RegressionAlgorithm(
+            registry_path=os.path.join(config.tests_path, "regression_registry.json")
+        )
+        print(f"[Factory] 回归测试算法已创建")
+
+        print()
+
+        return {
+            "llm": llm,
+            "storage": storage,
+            "sandbox_manager": sandbox_manager,
+            "pddl_modifier": pddl_modifier,
+            "planner": planner,
+            "evolution_algorithm": evolution_algorithm,
+            "curriculum_algorithm": curriculum_algorithm,
+            "regression_algorithm": regression_algorithm,
+            "create_executor": create_executor,
+            "create_translator": create_translator,
+            "create_planner": create_planner,
+            "config": config
+        }
+
+    @staticmethod
     def _load_extended_skills(executor, skills_path: str):
         """加载扩展技能（MCP执行器自动从服务器加载，此方法保留为空）"""
         # MCP执行器会自动从MCP服务器加载技能，无需手动加载
@@ -145,7 +217,11 @@ class TrainingFactory:
 
         # 1. 合并PDDL到tests/domain.pddl
         main_domain_path = os.path.join(config.tests_path, "domain.pddl")
-        pddl_modifier = PDDLModifier(config=config)
+        
+        # 使用服务注册表创建PDDL修改器
+        registry = ServiceRegistry.create_default_registry(config)
+        pddl_modifier = registry.get('pddl_modifier')
+        
         pddl_modifier.add_action(main_domain_path, skill_data['pddl_patch'])
         print(f"  - PDDL Action 已追加到主 Domain。")
 

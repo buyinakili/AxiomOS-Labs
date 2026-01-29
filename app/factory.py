@@ -1,29 +1,11 @@
-"""依赖注入工厂"""
+"""依赖注入工厂 - 使用服务注册表解耦"""
 from config.settings import Settings
 from algorithm.kernel import AxiomLabsKernel
-
-# 接口
-from interface.translator import ITranslator
-from interface.planner import IPlanner
-from interface.executor import IExecutor
-from interface.storage import IStorage
-from interface.llm import ILLM
-from interface.domain_expert import IDomainExpert
-
-# 实现
-from infrastructure.llm.deepseek_client import DeepSeekClient
-from infrastructure.storage.file_storage import FileStorage
-from infrastructure.planner.lama_planner import LAMAPlanner
-from infrastructure.executor.action_executor import ActionExecutor
-from infrastructure.executor.mcp_executor import MCPActionExecutor
-from infrastructure.translator.pddl_translator import PDDLTranslator
-from infrastructure.domain.file_management_expert import FileManagementExpert
-
-# 技能（不再导入本地技能，仅使用MCP技能）
+from app.service_registry import ServiceRegistry
 
 
 class AxiomLabsFactory:
-    """AxiomLabs系统工厂 - 负责组装所有组件"""
+    """AxiomLabs系统工厂 - 使用服务注册表解耦具体实现"""
 
     @staticmethod
     def create_kernel(config: Settings) -> AxiomLabsKernel:
@@ -36,42 +18,16 @@ class AxiomLabsFactory:
         # 验证配置
         config.validate()
 
-        # 1. 创建LLM客户端
-        llm: ILLM = DeepSeekClient(
-            api_key=config.llm_api_key,
-            base_url=config.llm_base_url,
-            model=config.llm_model
-        )
+        # 创建服务注册表
+        registry = ServiceRegistry.create_default_registry(config)
 
-        # 2. 创建存储
-        storage: IStorage = FileStorage(config=config)
+        # 从注册表获取服务
+        translator = registry.get('translator')
+        planner = registry.get('planner')
+        executor = registry.get('executor')
+        storage = registry.get('storage')
 
-        # 3. 创建规划器
-        planner: IPlanner = LAMAPlanner(config=config)
-
-        # 4. 创建执行器（强制使用MCP执行器，忽略use_mcp配置）
-        server_args = config.mcp_server_args.strip().split() if config.mcp_server_args.strip() else ["mcp_server_structured.py"]
-        executor = MCPActionExecutor(
-            storage_path=config.storage_path,
-            server_command=config.mcp_server_command,
-            server_args=server_args
-        )
-        executor_type = "MCP"
-
-        # 5. 创建领域专家
-        domain_experts = {
-            "file_management": FileManagementExpert(config=config)
-        }
-
-        # 6. 创建翻译器
-        translator: ITranslator = PDDLTranslator(
-            llm=llm,
-            storage=storage,
-            domain_experts=domain_experts,
-            config=config
-        )
-
-        # 7. 组装内核
+        # 组装内核
         kernel = AxiomLabsKernel(
             translator=translator,
             planner=planner,
@@ -82,12 +38,89 @@ class AxiomLabsFactory:
 
         # 简洁日志
         skill_count = len(executor.get_registered_skills())
-        print(f"[Factory] 内核已创建 | LLM: {config.llm_model} | 执行器: {executor_type} ({skill_count} 技能)")
+        print(f"[Factory] 内核已创建 | LLM: {config.llm_model} | 执行器: MCP ({skill_count} 技能)")
 
         return kernel
 
     @staticmethod
-    def _load_extended_skills(executor: IExecutor, skills_path: str):
+    def create_kernel_with_registry(registry: ServiceRegistry) -> AxiomLabsKernel:
+        """
+        使用自定义服务注册表创建内核
+
+        :param registry: 服务注册表实例
+        :return: AxiomLabsKernel实例
+        """
+        # 从注册表获取配置
+        config = registry.get('config')
+        config.validate()
+
+        # 从注册表获取服务
+        translator = registry.get('translator')
+        planner = registry.get('planner')
+        executor = registry.get('executor')
+        storage = registry.get('storage')
+
+        # 组装内核
+        kernel = AxiomLabsKernel(
+            translator=translator,
+            planner=planner,
+            executor=executor,
+            storage=storage,
+            config=config
+        )
+
+        # 简洁日志
+        skill_count = len(executor.get_registered_skills())
+        print(f"[Factory] 内核已创建 | LLM: {config.llm_model} | 执行器: MCP ({skill_count} 技能)")
+
+        return kernel
+
+    @staticmethod
+    def create_custom_kernel(config: Settings, 
+                            llm_class=None, 
+                            planner_class=None, 
+                            executor_class=None,
+                            storage_class=None,
+                            **kwargs) -> AxiomLabsKernel:
+        """
+        创建自定义内核，支持替换具体实现
+
+        :param config: 配置对象
+        :param llm_class: 自定义LLM实现类，如果为None则使用默认
+        :param planner_class: 自定义规划器实现类，如果为None则使用默认
+        :param executor_class: 自定义执行器实现类，如果为None则使用默认
+        :param storage_class: 自定义存储实现类，如果为None则使用默认
+        :param kwargs: 传递给自定义类的参数
+        :return: AxiomLabsKernel实例
+        """
+        config.validate()
+        
+        # 创建服务注册表
+        registry = ServiceRegistry.create_default_registry(config)
+        
+        # 替换自定义实现
+        from app.service_registry import (
+            register_custom_llm, register_custom_planner,
+            register_custom_executor, register_custom_storage
+        )
+        
+        if llm_class is not None:
+            register_custom_llm(registry, llm_class, **kwargs.get('llm_kwargs', {}))
+            
+        if planner_class is not None:
+            register_custom_planner(registry, planner_class, **kwargs.get('planner_kwargs', {}))
+            
+        if executor_class is not None:
+            register_custom_executor(registry, executor_class, **kwargs.get('executor_kwargs', {}))
+            
+        if storage_class is not None:
+            register_custom_storage(registry, storage_class, **kwargs.get('storage_kwargs', {}))
+        
+        # 使用自定义注册表创建内核
+        return AxiomLabsFactory.create_kernel_with_registry(registry)
+
+    @staticmethod
+    def _load_extended_skills(executor, skills_path: str):
         """
         加载扩展技能
 
