@@ -32,6 +32,6 @@ class GeneratedSkill(MCPBaseSkill):
         try:
             os.rename(old_path, new_path)
             pddl_delta = f'(and (not (at {old_file} {folder})) (at {new_file} {folder}) (is_created {new_file}))'
-            return self.create_success_response(f'文件 {old_file} 已重命名为 {new_file} 在 {folder} 目录下', pddl_delta)
+            return self.create_success_response(f'文件 {old_file} 已重命名为 {new_file} 在 {folder} 中', pddl_delta)
         except Exception as e:
             return self.create_error_response(str(e))

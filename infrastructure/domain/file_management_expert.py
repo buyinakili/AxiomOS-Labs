@@ -24,6 +24,7 @@ class FileManagementExpert(IDomainExpert):
             "[严禁行为] 严禁在目标中对不存在于 (:init) 中的文件使用 at 谓词，除非该任务是 create_file",
             "凡是在 (:init) 中出现的所有对象，必须在 (:objects) 中声明其类型",
             "如果是'创建'任务，必须要在目标中包含创建完目标创建文件应在的位置，防止planner随便找个地方创建"
+            "若是重命名任务，goal须包含原名不在原文件夹，新名在文件夹中"
         ]
 
     def get_domain_file(self) -> str:

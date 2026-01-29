@@ -119,6 +119,85 @@ class PDDLTranslator(ITranslator):
             print(f"[DEBUG] 提取的对象: {objects}", file=sys.stderr)
         return objects
     
+    def _extract_objects_from_goal(self, goal_content: str, domain: str) -> Dict[str, str]:
+        """
+        从goal内容中提取对象及其类型
+        
+        :param goal_content: goal内容字符串，如 "(:goal (and (at file_a backup)))"
+        :param domain: 领域名称
+        :return: 字典 {对象名: 类型}
+        """
+        # 目前只处理file_management领域
+        if domain != "file_management":
+            return {}
+        
+        # 类型映射：谓词 -> 参数位置 -> 类型
+        type_mapping = {
+            "at": {0: "file", 1: "folder"},
+            "connected": {0: "folder", 1: "folder"},
+            "scanned": {0: "folder"},
+            "is_created": {0: "file"},
+            "is_compressed": {0: "file", 1: "archive"},
+        }
+        
+        objects = {}
+        
+        # 解析goal内容，提取所有谓词
+        import re
+        
+        # 移除(:goal和可能的(and包装
+        content = goal_content.strip()
+        if content.startswith("(:goal"):
+            # 提取(:goal ...)内部的内容
+            match = re.search(r'\(:goal\s+(.*?)\)\s*$', content, re.DOTALL)
+            if match:
+                inner = match.group(1).strip()
+                # 如果包含(and ...)，提取and内部的内容
+                if inner.startswith("(and"):
+                    inner_match = re.search(r'\(and\s+(.*?)\)\s*$', inner, re.DOTALL)
+                    if inner_match:
+                        inner = inner_match.group(1).strip()
+                content = inner
+        
+        # 提取所有谓词（包括嵌套）
+        predicates = re.findall(r'\([^()]*(?:\([^()]*\)[^()]*)*\)', content)
+        
+        for pred in predicates:
+            # 移除外层括号
+            pred = pred.strip()
+            if not pred.startswith('(') or not pred.endswith(')'):
+                continue
+            inner = pred[1:-1].strip()
+            parts = inner.split()
+            if not parts:
+                continue
+            predicate = parts[0]
+            if predicate not in type_mapping:
+                continue
+            mapping = type_mapping[predicate]
+            for pos, obj in enumerate(parts[1:]):
+                if pos in mapping:
+                    obj_name = obj.strip()
+                    # 清理对象名称
+                    obj_name = obj_name.strip("()")
+                    if not obj_name:
+                        continue
+                    typ = mapping[pos]
+                    # 如果对象已存在，检查类型是否冲突
+                    if obj_name in objects and objects[obj_name] != typ:
+                        # 类型冲突，保留原有类型（记录警告）
+                        import sys
+                        print(f"[警告] 对象 {obj_name} 类型冲突: 已有类型 {objects[obj_name]}, 新类型 {typ}", file=sys.stderr)
+                    else:
+                        objects[obj_name] = typ
+        
+        # 调试打印
+        import sys
+        if self._should_debug_prompt():
+            print(f"[DEBUG] 从goal中提取的对象: {objects}", file=sys.stderr)
+        
+        return objects
+    
     def _build_objects_section(self, objects: Dict[str, str]) -> str:
         """
         构建PDDL objects部分
@@ -226,7 +305,7 @@ class PDDLTranslator(ITranslator):
 3. 必须在 (:init) 中包含 (= (total-cost) 0)。
 4. 避免关键字：严禁出现exists
 5. 若已知环境事实为空（即显示为"无"），你必须将goal仅设置为获取信息的动作后的唯一谓词。
-6. 严禁发明任何文件对象。如果不知道具体文件名，绝对不能在objects中创建文件对象。
+6. 严禁发明任何文件对象。如果不知道具体文件名，绝对不能在goal中创建文件对象。
 
 - 执行历史记录了之前执行过的动作，可以帮助你理解当前状态
 - 结合已知事实和执行历史来判断目标是否已完成
@@ -318,6 +397,16 @@ GOAL_FINISHED_ALREADY
             if not goal_content.startswith("(:goal"):
                 # 可能是纯谓词，包装一下
                 goal_content = f"(:goal (and {goal_content}))"
+            
+            # 从goal中提取对象并合并到现有objects中
+            goal_objects = self._extract_objects_from_goal(goal_content, domain)
+            for obj, typ in goal_objects.items():
+                if obj not in objects:
+                    objects[obj] = typ
+                    print(f"[翻译器] 将goal中的对象添加到objects: {obj} - {typ}")
+                elif objects[obj] != typ:
+                    print(f"[翻译器] 警告: 对象 {obj} 类型冲突，已有类型 {objects[obj]}，goal中类型 {typ}，保留原有类型")
+            
             # 构建完整problem
             objects_section = self._build_objects_section(objects)
             init_section = self._build_init_section(memory_facts, objects)
