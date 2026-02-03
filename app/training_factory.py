@@ -1,8 +1,8 @@
-"""训练模式依赖注入工厂 - 使用服务注册表解耦"""
+"""训练模式工厂 - 纯工厂模式实现"""
 import os
 import shutil
 from config.settings import Settings
-from app.service_registry import ServiceRegistry
+from app.factory import AxiomLabsFactory
 
 # 算法层
 from algorithm.evolution import EvolutionAlgorithm
@@ -11,7 +11,7 @@ from algorithm.regression import RegressionAlgorithm
 
 
 class TrainingFactory:
-    """训练模式工厂 - 使用服务注册表解耦具体实现"""
+    """训练模式工厂 - 纯工厂模式实现"""
 
     @staticmethod
     def create_training_components(config: Settings):
@@ -23,19 +23,16 @@ class TrainingFactory:
         """
         config.validate()
 
-        # 创建服务注册表
-        registry = ServiceRegistry.create_default_registry(config)
-
-        # 从注册表获取核心服务
-        llm = registry.get('llm')
-        storage = registry.get('storage')
-        sandbox_manager = registry.get('sandbox_manager')
-        pddl_modifier = registry.get('pddl_modifier')
-        planner = registry.get('planner')
+        # 直接创建核心服务
+        llm = AxiomLabsFactory.create_llm(config)
+        storage = AxiomLabsFactory.create_storage(config)
+        sandbox_manager = AxiomLabsFactory.create_sandbox_manager(config)
+        pddl_modifier = AxiomLabsFactory.create_pddl_modifier(config)
+        planner = AxiomLabsFactory.create_planner(config)
 
         print(f"[Factory] 核心服务已创建")
 
-        # 6. 创建执行器工厂（用于创建新的执行器实例）
+        # 创建执行器工厂
         def create_executor():
             # 使用MCP执行器，与主工厂保持一致
             server_args = config.mcp_server_args.strip().split() if config.mcp_server_args.strip() else ["mcp_server_structured.py"]
@@ -49,10 +46,11 @@ class TrainingFactory:
             # MCP执行器会自动从MCP服务器加载技能，无需手动注册
             return executor
 
-        # 7. 创建翻译器工厂
+        # 创建翻译器工厂
         def create_translator():
+            domain_expert = AxiomLabsFactory.create_domain_expert(config)
             domain_experts = {
-                config.domain_name: registry.get('domain_expert.file_management')
+                config.domain_name: domain_expert
             }
             from infrastructure.translator.pddl_translator import PDDLTranslator
             return PDDLTranslator(
@@ -62,12 +60,12 @@ class TrainingFactory:
                 config=config
             )
 
-        # 8. 创建规划器工厂
+        # 创建规划器工厂
         def create_planner():
             from infrastructure.planner.lama_planner import LAMAPlanner
             return LAMAPlanner(config=config)
 
-        # 9. 创建进化算法
+        # 创建进化算法
         executor_for_evolution = create_executor()
         evolution_algorithm = EvolutionAlgorithm(
             executor=executor_for_evolution,
@@ -78,14 +76,14 @@ class TrainingFactory:
         )
         print(f"[Factory] 进化算法已创建")
 
-        # 10. 创建课程算法
+        # 创建课程算法
         curriculum_algorithm = CurriculumAlgorithm(
             llm=llm,
             storage=storage
         )
         print(f"[Factory] 课程算法已创建")
 
-        # 11. 创建回归测试算法
+        # 创建回归测试算法
         regression_algorithm = RegressionAlgorithm(
             registry_path=os.path.join(config.pddl_configs_path, "regression_registry.json")
         )
@@ -109,9 +107,9 @@ class TrainingFactory:
         }
 
     @staticmethod
-    def create_training_components_with_registry(registry: ServiceRegistry):
+    def create_training_components_with_registry(registry):
         """
-        使用自定义服务注册表创建训练组件
+        使用自定义服务注册表创建训练组件（向后兼容）
 
         :param registry: 服务注册表实例
         :return: 组件字典
@@ -127,7 +125,7 @@ class TrainingFactory:
         pddl_modifier = registry.get('pddl_modifier')
         planner = registry.get('planner')
 
-        print(f"[Factory] 核心服务已创建")
+        print(f"[Factory] 核心服务已创建（使用注册表）")
 
         # 创建执行器工厂
         def create_executor():
@@ -220,9 +218,9 @@ class TrainingFactory:
         # 1. 合并PDDL到pddl_configs/domain.pddl
         main_domain_path = os.path.join(config.pddl_configs_path, "domain.pddl")
         
-        # 使用服务注册表创建PDDL修改器
-        registry = ServiceRegistry.create_default_registry(config)
-        pddl_modifier = registry.get('pddl_modifier')
+        # 直接创建PDDL修改器
+        from infrastructure.pddl.pddl_modifier import PDDLModifier
+        pddl_modifier = PDDLModifier(config=config)
         
         pddl_modifier.add_action(main_domain_path, skill_data['pddl_patch'])
         print(f"  - PDDL Action 已追加到主 Domain。")
