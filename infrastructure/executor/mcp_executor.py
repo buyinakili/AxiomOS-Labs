@@ -1,22 +1,26 @@
 #!/usr/bin/env python3
 """
-MCP 动作执行器实现
+MCP 动作执行器 (重构版)
 
+使用参数映射器解耦硬编码参数映射，实现动态、可配置的参数处理。
 通过 MCP 客户端调用远程工具，替代本地技能执行。
 """
+
 import asyncio
 import sys
-from typing import Dict, List
+import os
+from typing import Dict, List, Optional
 from interface.executor import IExecutor, ExecutionResult
 from infrastructure.mcp_client import SimpleMCPClient
 from infrastructure.pddl.pddl_state_updater import PDDLDelta
+from infrastructure.skills.parameter_mapper import get_default_mapper, map_action_to_arguments
 
 
-class MCPActionExecutor(IExecutor):
-    """基于 MCP 的动作执行器"""
+class MCPActionExecutorRefactored(IExecutor):
+    """基于 MCP 的动作执行器 (重构版)"""
 
     def __init__(self, storage_path: str = None, server_command: str = "python3",
-                 server_args: List[str] = None):
+                 server_args: List[str] = None, config=None):
         """
         初始化 MCP 执行器
         
@@ -24,8 +28,8 @@ class MCPActionExecutor(IExecutor):
             storage_path: 物理存储路径（保留用于兼容性）
             server_command: MCP 服务器命令
             server_args: MCP 服务器参数
+            config: 配置对象（可选）
         """
-        import os
         # 优先使用环境变量中的SANDBOX_STORAGE_PATH，如果不存在则使用传入的storage_path
         sandbox_storage_path = os.environ.get("SANDBOX_STORAGE_PATH")
         if sandbox_storage_path:
@@ -38,7 +42,7 @@ class MCPActionExecutor(IExecutor):
         
         self.execution_history: List[str] = []
         self.server_command = server_command
-        self.server_args = server_args or ["mcp_server_structured.py"]
+        self.server_args = server_args or ["mcp_server_structured.py"]  # 使用标准版服务器
         # 保存当前环境变量，用于传递给MCP服务器子进程
         self.server_env = os.environ.copy()
         self.client = SimpleMCPClient(
@@ -47,6 +51,11 @@ class MCPActionExecutor(IExecutor):
             server_env=self.server_env
         )
         self._connected = False
+        self.config = config
+        
+        # 参数映射器
+        self.parameter_mapper = get_default_mapper()
+        
         # 初始化日志已移除，由工厂统一输出
 
     def _ensure_connected(self) -> bool:
@@ -76,85 +85,40 @@ class MCPActionExecutor(IExecutor):
         Returns:
             ExecutionResult 对象
         """
-        # 解析动作
-        parts = action_str.strip().split()
-        if not parts:
-            return ExecutionResult(False, "动作字符串为空")
-
-        action_name = parts[0]
-        args = parts[1:]
-
         # 记录执行历史
-        self.execution_history.append(action_name.lower())
+        self.execution_history.append(action_str.split()[0].lower() if action_str.strip() else "")
 
         # 确保连接
         if not self._ensure_connected():
             return ExecutionResult(
                 False,
-                f"MCP 连接失败，无法执行动作: {action_name}"
+                f"MCP 连接失败，无法执行动作"
             )
 
-        # 构建参数字典（根据工具定义）
-        # 这里需要根据动作名称映射到对应的工具参数
-        # 简单实现：假设参数顺序与工具定义一致
-        tool_name = action_name.lower()
-        
-        # 检查工具是否存在
-        if not self.client.has_tool(tool_name):
-            return ExecutionResult(
-                False,
-                f"MCP 工具不存在: {tool_name}"
-            )
-
-        # 根据工具名称构建参数
-        arguments = {}
-        if tool_name == "scan":
-            if len(args) >= 1:
-                arguments["folder"] = args[0]
-            else:
-                return ExecutionResult(False, "scan 需要 folder 参数")
-        elif tool_name == "move":
-            if len(args) >= 3:
-                arguments["file_name"] = args[0]
-                arguments["from_folder"] = args[1]
-                arguments["to_folder"] = args[2]
-            else:
-                return ExecutionResult(False, "move 需要 file_name, from_folder, to_folder 参数")
-        elif tool_name == "get_admin":
-            # 无参数
-            pass
-        elif tool_name == "compress":
-            if len(args) >= 3:
-                arguments["file_name"] = args[0]
-                arguments["folder"] = args[1]
-                arguments["archive_name"] = args[2]
-            else:
-                return ExecutionResult(False, "compress 需要 file_name, folder, archive_name 参数")
-        elif tool_name == "remove_file":
-            if len(args) >= 2:
-                arguments["file_name"] = args[0]
-                arguments["folder_name"] = args[1]
-            else:
-                return ExecutionResult(False, "remove_file 需要 file_name, folder_name 参数")
-        elif tool_name == "rename_file":
-            if len(args) >= 3:
-                arguments["old_file"] = args[0]
-                arguments["new_file"] = args[1]
-                arguments["folder"] = args[2]
-            else:
-                return ExecutionResult(False, "rename_file 需要 old_file, new_file, folder 参数")
-        else:
-            # 通用处理：将位置参数映射为 arg0, arg1, ...
-            for i, arg in enumerate(args):
-                arguments[f"arg{i}"] = arg
-
-        # 调用工具
         try:
+            # 使用参数映射器解析动作
+            tool_name, arguments = map_action_to_arguments(action_str)
+            
+            # 检查工具是否存在
+            if not self.client.has_tool(tool_name):
+                return ExecutionResult(
+                    False,
+                    f"MCP 工具不存在: {tool_name}"
+                )
+            
+            # 验证参数
+            is_valid, error_msg = self.parameter_mapper.validate_parameters(tool_name, arguments)
+            if not is_valid:
+                return ExecutionResult(False, f"参数验证失败: {error_msg}")
+            
+            # 调用工具
             response = self.client.call_tool(tool_name, arguments)
+            
             if response.success:
                 # 提取 pddl_delta 并添加到结果中
                 pddl_delta = response.pddl_delta or ""
                 print(f"[MCP Executor DEBUG] tool={tool_name}, pddl_delta={pddl_delta}", file=sys.stderr)
+                
                 # 解析 delta 字符串为单独的事实
                 delta = PDDLDelta.parse(pddl_delta)
                 return ExecutionResult(
@@ -168,6 +132,9 @@ class MCPActionExecutor(IExecutor):
                     False,
                     f"MCP 工具调用失败: {response.error}"
                 )
+                
+        except ValueError as e:
+            return ExecutionResult(False, f"动作解析失败: {str(e)}")
         except Exception as e:
             return ExecutionResult(
                 False,
@@ -193,11 +160,7 @@ class MCPActionExecutor(IExecutor):
         
         注意：此方法仅在沙盒环境中有效，用于进化算法临时加载新技能
         """
-        import os
-        import shutil
-        
         # 检查是否为沙盒环境（通过存储路径判断）
-        # 沙盒环境的 storage_path 通常由沙盒管理器设置
         if not self.storage_path:
             # 非沙盒环境，保持原行为（静默忽略）
             return False
@@ -206,17 +169,12 @@ class MCPActionExecutor(IExecutor):
         if not os.path.exists(file_path):
             return False
         
-        # 关键修复：不再复制文件，因为evolution.py已经将文件创建在正确的位置
-        # 我们只需要设置环境变量并重启MCP客户端（仅在技能目录变化时）
-        
         # 获取技能文件所在的目录（应该是沙盒的skills目录）
         skill_dir = os.path.dirname(file_path)
         
         # 验证技能目录是否是沙盒的skills目录
-        # 检查路径中是否包含"skills"并且是沙盒路径的一部分
         if "skills" not in skill_dir:
             print(f"[MCP Executor] 警告：技能文件不在skills目录中: {file_path}")
-            # 仍然尝试使用，但记录警告
         
         print(f"[MCP Executor] 使用现有技能文件: {file_path}")
         
@@ -229,7 +187,6 @@ class MCPActionExecutor(IExecutor):
         os.environ["SANDBOX_MCP_SKILLS_DIR"] = skill_dir
         
         # 设置沙盒存储路径环境变量
-        # 优先使用当前进程的环境变量（由evolution.py设置），如果不存在则使用self.storage_path
         sandbox_storage_path = os.environ.get("SANDBOX_STORAGE_PATH", self.storage_path)
         self.server_env["SANDBOX_STORAGE_PATH"] = sandbox_storage_path
         os.environ["SANDBOX_STORAGE_PATH"] = sandbox_storage_path
@@ -299,3 +256,46 @@ class MCPActionExecutor(IExecutor):
             self.client.disconnect()
             self._connected = False
             # 静默断开，不输出日志
+    
+    def load_parameter_mappings(self, filepath: str):
+        """加载参数映射配置"""
+        self.parameter_mapper.load_mappings_from_file(filepath)
+        print(f"[MCP Executor] 已加载参数映射配置: {filepath}")
+
+
+# 向后兼容的别名
+MCPActionExecutor = MCPActionExecutorRefactored
+
+
+# 测试函数
+def test_mcp_executor():
+    """测试MCP执行器"""
+    print("测试MCP执行器...")
+    
+    # 创建执行器
+    executor = MCPActionExecutorRefactored()
+    
+    # 测试参数映射
+    test_actions = [
+        "scan workspace",
+        "move file_a folder_x folder_y",
+        "compress file.txt docs archive.zip",
+        "remove_file old.txt temp",
+        "get_admin"
+    ]
+    
+    print("测试动作解析:")
+    for action in test_actions:
+        try:
+            tool_name, arguments = map_action_to_arguments(action)
+            print(f"  {action} -> {tool_name}: {arguments}")
+        except Exception as e:
+            print(f"  {action} -> 错误: {e}")
+    
+    # 注意：实际执行需要MCP服务器运行
+    print("\n注意：实际执行测试需要MCP服务器运行")
+    print("MCP执行器测试完成！")
+
+
+if __name__ == "__main__":
+    test_mcp_executor()

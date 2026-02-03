@@ -43,7 +43,8 @@ class TrainingFactory:
             executor = MCPActionExecutor(
                 storage_path=config.storage_path,
                 server_command=config.mcp_server_command,
-                server_args=server_args
+                server_args=server_args,
+                config=config
             )
             # MCP执行器会自动从MCP服务器加载技能，无需手动注册
             return executor
@@ -136,7 +137,8 @@ class TrainingFactory:
             executor = MCPActionExecutor(
                 storage_path=config.storage_path,
                 server_command=config.mcp_server_command,
-                server_args=server_args
+                server_args=server_args,
+                config=config
             )
             return executor
 

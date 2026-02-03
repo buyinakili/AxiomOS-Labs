@@ -2,15 +2,15 @@
   (:domain file-manager)
   (:objects
     root backup - folder
-    good_dot_txt abc_dot_txt - file
+    abc_dot_txt good_dot_txt - file
   )
   (:init
     (= (total-cost) 0)
+    (at abc_dot_txt root)
     (connected backup root)
     (connected root backup)
-    (scanned backup)
     (scanned root)
   )
-  (:goal (and (not (at good_dot_txt backup)) (not (at abc_dot_txt root))))
+  (:goal (and (not (at abc_dot_txt root)) (not (at good_dot_txt backup))))
   (:metric minimize (total-cost))
 )

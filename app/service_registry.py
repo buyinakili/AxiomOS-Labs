@@ -108,7 +108,8 @@ class ServiceRegistry:
             return MCPActionExecutor(
                 storage_path=config.storage_path,
                 server_command=config.mcp_server_command,
-                server_args=server_args
+                server_args=server_args,
+                config=config
             )
         registry.register_factory('executor', create_executor)
         
