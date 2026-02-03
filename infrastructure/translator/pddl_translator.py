@@ -212,6 +212,36 @@ class PDDLTranslator(ITranslator):
         
         return objects
     
+    def _escape_goal_objects(self, goal_content: str) -> str:
+        """
+        转义goal内容中的对象名：将包含点号的对象名中的 '.' 替换为 '_dot_'
+        
+        :param goal_content: 原始goal内容字符串
+        :return: 转义后的goal内容字符串
+        """
+        import re
+        
+        # 匹配由字母、数字、下划线、点号、连字符组成的单词（PDDL对象名）
+        # 排除已经包含_dot_的单词（已经转义）
+        pattern = r'\b[a-zA-Z0-9_.-]+\b'
+        
+        def replace_match(match):
+            word = match.group(0)
+            # 如果单词包含点号且不包含_dot_（即未转义）
+            if '.' in word and '_dot_' not in word:
+                # 替换点为_dot_
+                return word.replace('.', '_dot_')
+            return word
+        
+        escaped = re.sub(pattern, replace_match, goal_content)
+        
+        # 调试输出
+        if self._should_debug_prompt() and escaped != goal_content:
+            import sys
+            print(f"[DEBUG] 转义goal对象: {goal_content} -> {escaped}", file=sys.stderr)
+        
+        return escaped
+    
     def _build_objects_section(self, objects: Dict[str, str]) -> str:
         """
         构建PDDL objects部分
@@ -440,6 +470,9 @@ GOAL_FINISHED_ALREADY
             if not goal_content.startswith("(:goal"):
                 # 可能是纯谓词，包装一下
                 goal_content = f"(:goal (and {goal_content}))"
+            
+            # 转义goal中的对象名（将 '.' 替换为 '_dot_'）
+            goal_content = self._escape_goal_objects(goal_content)
             
             # 从goal中提取对象并合并到现有objects中
             goal_objects = self._extract_objects_from_goal(goal_content, domain)

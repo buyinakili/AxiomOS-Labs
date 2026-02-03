@@ -80,7 +80,7 @@ def main():
     # 3. 运行任务
     if user_goal is None:
         # 默认任务
-        user_goal = "将root下的txt文件移动到backup文件夹下，然后把backup下的good.txt删除"
+        user_goal = "将root下的txt文件和backup下的good.txt删除"
 
     print(f"[Main] 开始执行任务: {user_goal}\n")
     print("="*80 + "\n")
