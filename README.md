@@ -1,5 +1,7 @@
 # AxiomOS Labs v0.5.0
 
+![AxiomOS Labs Logo](assets/logo.png)
+
 ## 一项致力于通过神经符号与沙盒审计自演进重构通用智能底层逻辑的前沿探索
 
 ## 重构计划：CoA数据生成器
@@ -149,7 +151,10 @@ Star 这个仓库支持项目探索
 2. 引入prompt的自学习
 3. 创造新的符号领域规划语言（可能）
 
-## 📺 v0.3.1演示视频 (Demo)
+## 📺 演示视频 (Demo)
+### v0.5.0演示：
+【AxiomOSLabs v0.5.0版本发布】 https://www.bilibili.com/video/BV1jHFVz1EcR/?share_source=copy_web&vd_source=a2c7eebd10946ecc96e9cc3ad330438d
+### v0.3.1演示：
 【一个融合了LLM与PDDL规划的沙盒审计自演进智能体AIOS架构】
 
 https://www.bilibili.com/video/BV1RMzuBjEym/?share_source=copy_web&vd_source=a2c7eebd10946ecc96e9cc3ad330438d
