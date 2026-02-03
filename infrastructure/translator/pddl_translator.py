@@ -172,6 +172,13 @@ class PDDLTranslator(ITranslator):
         for pred in predicates:
             # 移除外层括号
             pred = pred.strip()
+            # 处理否定谓词：递归剥离 (not ...)
+            while pred.startswith('(not'):
+                # 移除外层的 (not 和对应的右括号)
+                # 格式为 (not <inner>)，其中 inner 可能带有括号
+                # 我们直接去掉前5个字符 "(not " 和最后一个字符 ")"
+                inner = pred[5:-1].strip()
+                pred = inner
             if not pred.startswith('(') or not pred.endswith(')'):
                 continue
             inner = pred[1:-1].strip()
