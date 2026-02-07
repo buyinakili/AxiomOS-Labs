@@ -107,7 +107,10 @@ class BrainLLM(IBrainLLM):
         available_actions: List[str],
         failure_reason: Optional[str] = None
     ) -> str:
-        """构建LLM提示词"""
+        """构建改进的LLM提示词"""
+        # 从环境事实中提取可用对象
+        available_objects = self._extract_objects_from_facts(current_facts)
+        
         prompt_lines = [
             "你是一个任务规划器。给定以下任务和环境事实，请将其分解为PDDL格式的任务序列。",
             "",
@@ -122,21 +125,40 @@ class BrainLLM(IBrainLLM):
         
         prompt_lines.extend([
             "",
-            "可用动作（只能使用这些动作）:"
+            "可用对象（从环境事实中提取）:"
         ])
         
-        # 添加可用动作
+        # 添加可用对象
+        for obj_type, obj_list in available_objects.items():
+            if obj_list:
+                prompt_lines.append(f"  {obj_type}: {', '.join(obj_list)}")
+        
+        prompt_lines.extend([
+            "",
+            "可用动作模板（?表示参数占位符，需要替换为具体对象）:"
+        ])
+        
+        # 添加可用动作模板
         for action in available_actions:
             prompt_lines.append(f"  {action}")
         
         prompt_lines.extend([
             "",
+            "动作参数说明:",
+            "  ?d, ?src, ?dst: 文件夹对象（如 root, workspace）",
+            "  ?f, ?src, ?dst: 文件对象（如 file1, file2）",
+            "  ?a: 归档文件对象",
+            "  ?name, ?old_name, ?new_name: 文件名",
+            "  ?parent: 父文件夹",
+            "",
             "要求:",
-            "1. 只能使用上述可用动作",
-            "2. 每个任务必须是PDDL格式（如 '(scan root)' 或 '(move file1 root backup)'）",
-            "3. 考虑动作的前置条件",
+            "1. 只能使用上述动作模板，但需要将参数占位符替换为具体的可用对象",
+            "2. 每个任务必须是完整的PDDL格式（如 '(scan root)' 或 '(move file1 root workspace)'）",
+            "3. 考虑动作的前置条件（如 scan 需要 has_admin_rights）",
             "4. 输出格式：每个任务一行，不要编号，不要额外文字",
             "5. 确保任务序列能实现用户目标",
+            "6. 优先使用简单的动作序列",
+            "7. 如果动作需要特定对象但环境中没有，可以使用默认对象（如 root 文件夹）",
             ""
         ])
         
@@ -147,7 +169,7 @@ class BrainLLM(IBrainLLM):
                 ""
             ])
         
-        prompt_lines.append("任务序列:")
+        prompt_lines.append("任务序列（将参数占位符替换为具体对象）:")
         
         return "\n".join(prompt_lines)
 
@@ -177,6 +199,51 @@ class BrainLLM(IBrainLLM):
                     tasks.append(line)
         
         return tasks
+
+    def _extract_objects_from_facts(self, facts: Set[str]) -> Dict[str, List[str]]:
+        """
+        从环境事实中提取可用对象
+        
+        :param facts: 环境事实集合
+        :return: 对象类型到对象名称列表的映射
+        """
+        objects = {
+            "folder": ["root"],  # 默认文件夹
+            "file": [],
+            "archive": [],
+            "filename": []
+        }
+        
+        # 解析事实中的对象
+        for fact in facts:
+            # 匹配 (at ?file ?folder) 格式
+            match = re.match(r'^\s*\(at\s+(\w+)\s+(\w+)\)\s*$', fact)
+            if match:
+                file_name, folder_name = match.groups()
+                if file_name not in objects["file"]:
+                    objects["file"].append(file_name)
+                if folder_name not in objects["folder"]:
+                    objects["folder"].append(folder_name)
+            
+            # 匹配 (connected ?folder1 ?folder2) 格式
+            match = re.match(r'^\s*\(connected\s+(\w+)\s+(\w+)\)\s*$', fact)
+            if match:
+                folder1, folder2 = match.groups()
+                if folder1 not in objects["folder"]:
+                    objects["folder"].append(folder1)
+                if folder2 not in objects["folder"]:
+                    objects["folder"].append(folder2)
+            
+            # 匹配 (has_name ?file ?filename) 格式
+            match = re.match(r'^\s*\(has_name\s+(\w+)\s+(\w+)\)\s*$', fact)
+            if match:
+                file_name, filename = match.groups()
+                if file_name not in objects["file"]:
+                    objects["file"].append(file_name)
+                if filename not in objects["filename"]:
+                    objects["filename"].append(filename)
+        
+        return objects
 
     def _validate_chain(self, chain: List[str], available_actions: List[str]) -> bool:
         """验证任务链是否有效"""

@@ -152,6 +152,14 @@ class CoTDataGenerator:
                     for reachable, state in if_task_can_execute
                 ]
                 
+                # 调试信息：显示每个任务的可达性
+                if self.config.get("debug", False):
+                    print(f"[CoT Debug] 可达性检查结果:")
+                    for i, (reachable, state) in enumerate(if_task_can_execute):
+                        print(f"  任务 {i+1}: {chain_of_mission[i]} -> 可达: {reachable}")
+                        if not reachable:
+                            print(f"    当前状态: {state[:5]}...")  # 只显示前5个事实
+                
                 # 验证所有任务可达
                 for i, (reachable, state) in enumerate(if_task_can_execute):
                     if not reachable:
@@ -289,9 +297,32 @@ class CoTDataGenerator:
         
         :return: 环境事实集合
         """
-        # 简化实现：返回空集合
-        # 实际应调用Scan技能
-        return set()
+        # 提供丰富的默认环境事实，使BrainLLM能够处理更多类型的任务
+        # 在实际系统中，这里应该调用Scan技能来获取真实环境状态
+        # 注意：所有事实都使用PDDL格式（带括号）
+        return {
+            "(has_admin_rights)",
+            # 文件和文件夹
+            "(at file1 root)",
+            "(at readme root)",
+            "(at config root)",
+            "(at main_py root)",
+            # 文件夹连接
+            "(connected root workspace)",
+            "(connected root docs)",
+            "(connected root backup)",
+            # 文件名称
+            "(has_name file1 test_file)",
+            "(has_name readme README_dot_md)",
+            "(has_name config config_dot_json)",
+            "(has_name main_py main_dot_py)",
+            # 文件夹状态
+            "(is_empty docs)",
+            "(is_empty backup)",
+            # 默认对象
+            "(is_created root)",
+            "(is_created workspace)",
+        }
     
     def _get_available_actions(self, domain: str) -> List[str]:
         """

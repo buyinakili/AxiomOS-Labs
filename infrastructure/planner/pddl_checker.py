@@ -196,7 +196,13 @@ class PDDLStateSimulator:
         # 检查前置条件（简化：仅检查has_admin_rights）
         # 注意：实际应检查所有前置条件，这里为简化只检查管理员权限
         if action_name != "get_admin":
-            if "(has_admin_rights)" not in state:
+            # 检查has_admin_rights事实（支持两种格式）
+            has_admin = False
+            for fact in state:
+                if fact == "has_admin_rights" or fact == "(has_admin_rights)":
+                    has_admin = True
+                    break
+            if not has_admin:
                 return False, state
         
         # 检查动作是否在效果映射中
