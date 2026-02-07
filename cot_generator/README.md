@@ -66,20 +66,10 @@ python3 tests/test_remaining_skills.py
 
 ```
 cot_generator/
-├── algorithm/          # 核心算法 (hypothalamus_filter, cot_data_generator)
-├── app/               # 应用入口
 ├── config/            # 配置管理
 │   ├── __init__.py
 │   ├── constants.py   # 常量定义
 │   └── settings.py    # 配置类
-├── infrastructure/    # 基础设施实现
-│   ├── llm/          # LLM客户端
-│   ├── translator/   # 翻译器实现
-│   ├── planner/      # 规划器
-│   ├── executor/     # 执行器
-│   ├── mcp_skills/   # MCP技能实现（九大原子动作）
-│   └── skills/       # 旧版技能系统（已弃用）
-├── interface/         # 抽象接口定义
 ├── pddl_configs/     # PDDL配置文件
 │   ├── domain_extended.pddl    # 九大原子动作PDDL定义
 │   └── problem_example.pddl    # 示例问题文件
@@ -88,10 +78,14 @@ cot_generator/
 │   ├── test_smoke.py
 │   ├── test_physical_alignment_comprehensive.py
 │   └── test_remaining_skills.py
-├── utils/            # 工具类
 ├── .env.example      # 环境变量示例
 └── README.md         # 本文档
 ```
+
+**架构说明**：
+- CoT数据生成器**直接使用主项目的基础设施**（LLM、Translator、Planner、Executor、MCP技能）
+- 删除冗余目录，保持架构简洁
+- 所有九大原子动作通过主项目的MCP技能实现
 
 ## 配置说明
 
@@ -197,11 +191,36 @@ python3 tests/test_remaining_skills.py
 ```
 
 ## 技术栈
-- **编程语言**: Python 3.8+
+- **编程语言**: Python 3.8+ (异步/await)
 - **规划器**: Fast-Downward (LAMA)
 - **LLM集成**: DeepSeek API
+- **技能架构**: 异步MCP技能 (九大原子动作)
 - **测试框架**: pytest, unittest
 - **配置管理**: python-dotenv
+
+## 异步架构说明
+
+本项目采用**全异步架构**，所有技能执行均为异步操作：
+
+### 异步优势
+1. **性能优化**: 异步I/O操作提高并发性能
+2. **统一接口**: 所有技能使用一致的 `async def execute()` 接口
+3. **现代标准**: 符合现代Python异步编程最佳实践
+4. **MCP兼容**: 原生支持MCP (Model Context Protocol) 协议
+
+### 技能执行模式
+```python
+# 异步执行MCP技能
+from infrastructure.mcp_skills.scan_skill import ScanSkill
+
+skill = ScanSkill()
+result = await skill.execute({"folder": "test_folder"})
+```
+
+### 架构简化
+- **删除冗余**: 移除了同步技能实现 (`scan_skill.py`, `move_skill.py`)
+- **统一基类**: `BaseSkill.execute()` 改为异步接口
+- **直接集成**: CoT数据生成器直接使用主项目的MCP技能
 
 ## Git工作流
 
