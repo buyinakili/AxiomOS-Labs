@@ -85,7 +85,7 @@ class PDDLTranslator(ITranslator):
         # 类型映射：谓词 -> 参数位置 -> 类型
         type_mapping = {
             "at": {0: "file", 1: "folder"},
-            "connected": {0: "folder", 1: "folder"},
+            # 不再包含connected谓词，因为它已被删除
             "scanned": {0: "folder"},
             "is_created": {0: "file"},  # 也可能是folder，但默认为file
             "is_compressed": {0: "file", 1: "archive"},
@@ -307,10 +307,7 @@ class PDDLTranslator(ITranslator):
             # 找出所有文件夹
             folders = [obj for obj, typ in objects.items() if typ == "folder"]
             # 生成双向连接
-            for f1 in folders:
-                for f2 in folders:
-                    if f1 != f2:
-                        init_facts.add(f"(connected {f1} {f2})")
+            # 不再生成connected事实，因为connected谓词已被删除
         
         # 添加total-cost（如果不存在）
         init_facts.add("(= (total-cost) 0)")

@@ -166,18 +166,15 @@ class CoTDataBatchGenerator:
         default_tasks = [
             "扫描当前文件夹",
             "创建一个名为test的文件夹",
-            "在test文件夹中创建README.md文件",
-            "将README.md文件重命名为README.txt",
-            "复制README.txt到backup文件夹",
-            "删除test文件夹",
+            "创建在test文件夹，然后在里面创建README.md文件",
+            "将abc.txt文件重命名为README.txt",
+            "复制abc.txt到backup文件夹",
+            "删除backup文件夹",
             "压缩backup文件夹中的所有文件",
-            "解压archive.zip文件到extracted文件夹",
+            "把所有文件复制一份然后打包成一个zip文件，名字你自己取",
             "获取管理员权限",
-            "连接两个文件夹",
-            "扫描workspace文件夹并创建备份",
-            "先创建项目结构，然后备份重要文件",
-            "如果文件存在则移动它，否则创建新文件",
-            "除了txt文件外，移动所有文件到archive文件夹"
+            "扫描backup文件夹并创建备份",
+            "除了txt文件外，移动所有文件到folder1文件夹"
         ]
         
         tasks = []
@@ -662,9 +659,12 @@ def quick_test():
     """快速测试函数"""
     print("运行快速测试...")
     
-    # 创建批量生成器
+    # 创建批量生成器 - 使用cot_data目录而不是workspace
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    output_dir = os.path.join(project_root, "cot_data", f"test_{timestamp}")
+    
     generator = CoTDataBatchGenerator(
-        output_dir=os.path.join(project_root, "workspace", "test_batch"),
+        output_dir=output_dir,
         max_workers=2
     )
     

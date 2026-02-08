@@ -379,34 +379,46 @@ class CoTDataGenerator:
         """
         扫描环境，返回当前环境事实
         
+        调用真实的Scan技能获取沙盒环境中的实际文件结构。
+        扫描当前目录（沙盒根目录），而不是硬编码的"root"文件夹。
+        
         :return: 环境事实集合
         """
-        # 提供丰富的默认环境事实，使BrainLLM能够处理更多类型的任务
-        # 在实际系统中，这里应该调用Scan技能来获取真实环境状态
-        # 注意：所有事实都使用PDDL格式（带括号）
-        return {
-            "(has_admin_rights)",
-            # 文件和文件夹
-            "(at file1 root)",
-            "(at readme root)",
-            "(at config root)",
-            "(at main_py root)",
-            # 文件夹连接
-            "(connected root workspace)",
-            "(connected root docs)",
-            "(connected root backup)",
-            # 文件名称
-            "(has_name file1 test_file)",
-            "(has_name readme README_dot_md)",
-            "(has_name config config_dot_json)",
-            "(has_name main_py main_dot_py)",
-            # 文件夹状态
-            "(is_empty docs)",
-            "(is_empty backup)",
-            # 默认对象
-            "(is_created root)",
-            "(is_created workspace)",
-        }
+        try:
+            # 首先确保有管理员权限（Scan技能需要has_admin_rights）
+            admin_result = self.executor.execute("(get_admin)")
+            if not admin_result.success:
+                # 如果获取管理员权限失败，记录警告但继续尝试扫描
+                print(f"[WARNING] 获取管理员权限失败: {admin_result.message}")
+            
+            # 执行扫描当前目录（沙盒根目录）
+            # 使用"."表示当前目录，Scan技能会将其转换为物理路径
+            scan_result = self.executor.execute("(scan .)")
+            if not scan_result.success:
+                # 扫描失败，返回空集合（让后续流程处理错误）
+                print(f"[ERROR] 扫描环境失败: {scan_result.message}")
+                return set()
+            
+            # 从扫描结果中提取事实
+            # scan_result.add_facts 包含Scan技能返回的所有PDDL事实
+            facts = set()
+            if scan_result.add_facts:
+                facts.update(scan_result.add_facts)
+            
+            # 确保包含has_admin_rights事实（如果get_admin成功）
+            if admin_result.success:
+                facts.add("(has_admin_rights)")
+            
+            # 不再添加硬编码的"(is_created root)"事实
+            # 让Scan技能返回实际扫描到的事实
+            
+            print(f"[INFO] 环境扫描完成，获取到 {len(facts)} 个事实")
+            return facts
+            
+        except Exception as e:
+            print(f"[ERROR] 环境扫描异常: {e}")
+            # 返回空集合，让调用者处理
+            return set()
     
     def _get_available_actions(self, domain: str) -> List[str]:
         """

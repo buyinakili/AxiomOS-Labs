@@ -172,6 +172,10 @@ class NervesLLM(INervesLLM):
         prompt_lines = [
             "你是一个动作规划器。给定以下任务和环境事实，请将其分解为PDDL格式的原子动作序列。",
             "",
+            "重要说明:",
+            "1. 所有路径使用物理路径编码格式：斜杠 '/' 替换为 '_slash_'，点 '.' 替换为 '_dot_'",
+            "2. 例如：物理路径 'cba/good.txt' 编码为 'cba_slash_good_dot_txt'",
+            "",
             f"任务: {task}",
             f"领域: {domain}",
             "",
@@ -184,7 +188,7 @@ class NervesLLM(INervesLLM):
         
         prompt_lines.extend([
             "",
-            "可用对象（只能使用这些对象）:"
+            "可用对象（只能使用这些对象，注意对象名是编码后的物理路径）:"
         ])
         
         # 添加可用对象
@@ -204,11 +208,12 @@ class NervesLLM(INervesLLM):
             "",
             "要求:",
             "1. 只能使用上述可用动作和对象",
-            "2. 每个动作必须是PDDL格式（如 '(get_admin)' 或 '(scan root)'）",
+            "2. 每个动作必须是PDDL格式（如 '(get_admin)' 或 '(scan storage_jail_slash_root)'）",
             "3. 考虑动作的前置条件（如执行scan需要has_admin_rights）",
             "4. 输出格式：每个动作一行，不要编号，不要额外文字",
             "5. 确保动作序列能完成给定任务",
             "6. 动作序列应该是最小且有效的",
+            "7. 注意：动作参数使用编码后的路径对象",
             ""
         ])
         
@@ -250,8 +255,8 @@ class NervesLLM(INervesLLM):
         return actions
 
     def _validate_chain(
-        self, 
-        chain: List[str], 
+        self,
+        chain: List[str],
         available_actions: List[str],
         available_objects: Set[str]
     ) -> bool:
@@ -261,6 +266,9 @@ class NervesLLM(INervesLLM):
         
         # 提取动作名称（第一个单词）
         action_pattern = re.compile(r'^\s*\((\w+)')
+        
+        # 创建类动作，允许新对象
+        creation_actions = {"create_folder", "create_file", "rename"}
         
         for action in chain:
             match = action_pattern.match(action)
@@ -290,7 +298,11 @@ class NervesLLM(INervesLLM):
                     if obj_clean and not obj_clean.startswith("?") and obj_clean not in available_objects:
                         # 允许数字和常见值
                         if not (obj_clean.isdigit() or obj_clean in ["true", "false", "null"]):
-                            return False
+                            # 对于创建类动作，允许新对象
+                            if action_name in creation_actions:
+                                continue
+                            else:
+                                return False
         
         return True
 

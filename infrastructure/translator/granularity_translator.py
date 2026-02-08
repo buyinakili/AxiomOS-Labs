@@ -46,7 +46,7 @@ class Nerves2BrainTranslator(IGranularityTranslator):
         self.predicate_rules = {
             # 文件位置相关
             "(at ?f ?d)": "(located ?f ?d)",  # 简化表示
-            "(connected ?d1 ?d2)": "(accessible ?d1 ?d2)",
+            # 不再映射connected谓词，因为它已被删除
             
             # 状态相关
             "(scanned ?d)": "(known ?d)",
@@ -135,11 +135,7 @@ class Nerves2BrainTranslator(IGranularityTranslator):
             if match:
                 file_name, folder_name = match.groups()
                 return f"(located {file_name} {folder_name})"
-        elif fact.startswith("(connected "):
-            match = re.match(r'\(connected (\w+) (\w+)\)', fact)
-            if match:
-                folder1, folder2 = match.groups()
-                return f"(accessible {folder1} {folder2})"
+        # 不再处理connected谓词，因为它已被删除
         elif fact.startswith("(scanned "):
             match = re.match(r'\(scanned (\w+)\)', fact)
             if match:
@@ -264,7 +260,7 @@ class Brain2NervesTranslator(IGranularityTranslator):
         # 反向映射：Brain谓词 -> Nerves谓词
         self.reverse_rules = {
             "(located ?f ?d)": "(at ?f ?d)",
-            "(accessible ?d1 ?d2)": "(connected ?d1 ?d2)",
+            # 不再映射accessible谓词，因为connected谓词已被删除
             "(known ?d)": "(scanned ?d)",
             "(exists ?obj)": "(is_created ?obj)",
             "(compressed ?f)": "(is_compressed ?f ?a)",  # 需要生成archive对象
@@ -320,11 +316,7 @@ class Brain2NervesTranslator(IGranularityTranslator):
             if match:
                 file_name, folder_name = match.groups()
                 return [f"(at {file_name} {folder_name})"]
-        elif fact.startswith("(accessible "):
-            match = re.match(r'\(accessible (\w+) (\w+)\)', fact)
-            if match:
-                folder1, folder2 = match.groups()
-                return [f"(connected {folder1} {folder2})"]
+        # 不再处理accessible谓词，因为connected谓词已被删除
         elif fact.startswith("(known "):
             match = re.match(r'\(known (\w+)\)', fact)
             if match:

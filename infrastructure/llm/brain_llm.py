@@ -225,15 +225,6 @@ class BrainLLM(IBrainLLM):
                 if folder_name not in objects["folder"]:
                     objects["folder"].append(folder_name)
             
-            # 匹配 (connected ?folder1 ?folder2) 格式
-            match = re.match(r'^\s*\(connected\s+(\w+)\s+(\w+)\)\s*$', fact)
-            if match:
-                folder1, folder2 = match.groups()
-                if folder1 not in objects["folder"]:
-                    objects["folder"].append(folder1)
-                if folder2 not in objects["folder"]:
-                    objects["folder"].append(folder2)
-            
             # 匹配 (has_name ?file ?filename) 格式
             match = re.match(r'^\s*\(has_name\s+(\w+)\s+(\w+)\)\s*$', fact)
             if match:

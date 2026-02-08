@@ -148,15 +148,11 @@ class PDDLStateSimulator:
             ),
             "create_folder": (
                 ["(is_empty {0})", "(is_created {0})"],  # 添加
-                []                                      # 删除
+                []                                       # 删除
             ),
             "get_admin": (
                 ["(has_admin_rights)"],  # 添加
                 []                       # 删除
-            ),
-            "connect_folders": (
-                ["(connected {0} {1})", "(connected {1} {0})"],  # 添加
-                []                                              # 删除
             ),
         }
     

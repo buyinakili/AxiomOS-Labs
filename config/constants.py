@@ -93,7 +93,6 @@ class Constants:
     # 类型映射：谓词 -> 参数位置 -> 类型（用于文件管理领域）
     TYPE_MAPPING = {
         "at": {0: "file", 1: "folder"},
-        "connected": {0: "folder", 1: "folder"},
         "scanned": {0: "folder"},
         "is_created": {0: "file"},
         "is_compressed": {0: "file", 1: "archive"},

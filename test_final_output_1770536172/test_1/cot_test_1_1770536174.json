@@ -1,9 +1,0 @@
-{
-  "mission_id": "75f832a6-bb2b-4ea9-8611-1e5d03636f6f",
-  "mission": "扫描root文件夹",
-  "domain": "file-manager-extended",
-  "Brain": [],
-  "Nerves": [],
-  "BrainError": [],
-  "NervesError": []
-}

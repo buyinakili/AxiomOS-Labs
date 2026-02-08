@@ -27,7 +27,6 @@ class FileManagementExpert(IDomainExpert):
         """
         return [
             "文件名点号转义：所有的 '.' 必须替换为 '_dot_'",
-            "路径连通性：必须在 (:init) 中定义文件夹双向连接，如 (connected root backup) (connected backup root)",
             "实体补全：(:objects) 必须包含所有在目标中出现的 file 和 folder",
             "若任务开始时已知文件位置，必须在init中写明",
             "[严禁行为] 严禁在目标中对不存在于 (:init) 中的文件使用 at 谓词，除非该任务是 create_file",

@@ -262,6 +262,8 @@ async def main():
     
     # 优先使用SANDBOX_STORAGE_PATH
     if sandbox_storage_path and os.path.exists(sandbox_storage_path):
+        # 使用沙盒存储路径本身作为工作目录（即 storage_jail）
+        # 这样技能中的路径参数（如 _dot_, _dot__slash_root）才能正确解析为 storage_jail 下的路径
         target_working_dir = sandbox_storage_path
         logger.info(f"使用沙盒存储路径作为工作目录: {target_working_dir}")
     else:

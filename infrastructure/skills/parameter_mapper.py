@@ -120,6 +120,25 @@ class ParameterMapper:
             )
         )
         
+        # create_folder 工具映射
+        self.register_mapping(
+            ParameterMapping(
+                tool_name="create_folder",
+                param_schema={
+                    "type": "object",
+                    "properties": {
+                        "folder": {"type": "string", "description": "新文件夹名称"},
+                        "parent": {"type": "string", "description": "父文件夹名称"}
+                    },
+                    "required": ["folder", "parent"]
+                },
+                mapping_rules=[
+                    {"param_name": "folder", "source_type": "positional", "source_value": 0},
+                    {"param_name": "parent", "source_type": "positional", "source_value": 1}
+                ]
+            )
+        )
+        
         # get_admin 工具映射（无参数）
         self.register_mapping(
             ParameterMapping(
@@ -308,6 +327,23 @@ def get_default_mapper() -> ParameterMapper:
     return _default_mapper
 
 
+def _translate_dot_to_storage_jail(arg: str) -> str:
+    """
+    将 _dot_ 相关的参数转换为物理路径参数
+    
+    规则：
+    1. 如果参数是 "_dot_"，返回 "."（表示当前目录）
+    2. 如果参数以 "_dot__slash_" 开头，将其替换为 "./"（表示当前目录下的子项）
+    3. 否则返回原参数
+    """
+    if arg == "_dot_":
+        return "."
+    elif arg.startswith("_dot__slash_"):
+        # _dot__slash_root -> ./root
+        return "./" + arg[len("_dot__slash_"):]
+    else:
+        return arg
+
 def map_action_to_arguments(action_str: str) -> Tuple[str, Dict[str, Any]]:
     """
     将动作字符串映射到工具名称和参数字典
@@ -333,11 +369,14 @@ def map_action_to_arguments(action_str: str) -> Tuple[str, Dict[str, Any]]:
     tool_name = parts[0].lower()
     args = parts[1:]
     
+    # 转换参数：将 _dot_ 相关参数转换为 storage_jail 相关参数
+    translated_args = [_translate_dot_to_storage_jail(arg) for arg in args]
+    
     # 获取参数映射器
     mapper = get_default_mapper()
     
     # 映射参数
-    arguments = mapper.map_parameters(tool_name, args)
+    arguments = mapper.map_parameters(tool_name, translated_args)
     
     return tool_name, arguments
 

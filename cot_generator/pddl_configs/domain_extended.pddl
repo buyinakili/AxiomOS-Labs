@@ -12,7 +12,6 @@
   (:predicates
     ;; 基础谓词
     (at ?f - file ?d - folder)
-    (connected ?d1 ?d2 - folder)
     (has_admin_rights)
     (scanned ?d - folder)
     (is_created ?obj - (either file folder archive))
@@ -43,7 +42,6 @@
     :parameters (?f - file ?src - folder ?dst - folder)
     :precondition (and 
         (at ?f ?src) 
-        (connected ?src ?dst) 
         (has_admin_rights)
     )
     :effect (and 
@@ -88,7 +86,6 @@
     :parameters (?src - file ?dst - file ?src_folder - folder ?dst_folder - folder)
     :precondition (and 
         (at ?src ?src_folder)
-        (connected ?src_folder ?dst_folder)
         (has_admin_rights)
     )
     :effect (and
@@ -151,7 +148,6 @@
     :parameters (?d - folder ?parent - folder)
     :precondition (and 
         (has_admin_rights)
-        (connected ?parent ?d)  ; 父文件夹连接到新文件夹
     )
     :effect (and
         (is_empty ?d)
@@ -171,15 +167,5 @@
     )
   )
 
-  ;; connect_folders - 连接文件夹（用于建立文件夹关系）
-  (:action connect_folders
-    :parameters (?d1 ?d2 - folder)
-    :precondition (has_admin_rights)
-    :effect (and
-        (connected ?d1 ?d2)
-        (connected ?d2 ?d1)  ; 双向连接
-        (increase (total-cost) 1)
-    )
-  )
 
 )

@@ -292,8 +292,8 @@ class BatchCoTDataRecorder:
         """
         self.output_dir = output_dir or os.path.join(
             os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
-            "workspace",
-            "batch_cot_data"
+            "cot_data",
+            "batch"
         )
         os.makedirs(self.output_dir, exist_ok=True)
         
