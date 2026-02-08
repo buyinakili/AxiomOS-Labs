@@ -1,0 +1,9 @@
+{
+  "mission_id": "457638db-7bba-4219-8c9d-65885479b831",
+  "mission": "创建test文件夹",
+  "domain": "file-manager-extended",
+  "Brain": [],
+  "Nerves": [],
+  "BrainError": [],
+  "NervesError": []
+}
