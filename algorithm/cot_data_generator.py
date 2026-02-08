@@ -100,13 +100,97 @@ class CoTDataGenerator:
         :param user_task: 用户任务
         :return: CoT数据
         """
-        # 简化实现：直接调用NervesLLM分解并执行
-        # 注意：这里需要环境扫描等步骤，为简化先返回骨架
-        return {
+        # 初始化数据收集
+        cot_data = {
             "task": user_task,
             "route": "Route_To_Nerves",
-            "note": "Nerves-only processing not fully implemented yet",
+            "brain_layer": {},  # 空Brain层
+            "nerves_layers": [],
+            "execution_trace": [],
+            "success": False,
+            "error_messages": [],
         }
+        
+        # 重置Nerves失败次数
+        self.nerves_false_times = 0
+        
+        # 重试循环
+        while self.nerves_false_times < self.nerves_false_limit:
+            try:
+                # 扫描环境（简化：使用默认环境）
+                nerves_start_env = self._scan_environment()
+                
+                # 获取领域（简化：固定为文件管理）
+                domain = "file_management"
+                
+                # NervesLLM分解为原子动作
+                chain_of_action = self.nerves_llm.decompose_action(
+                    task=user_task,
+                    current_facts=nerves_start_env,
+                    domain=domain,
+                    previous_failure_reason=None
+                )
+                print(f"[DEBUG _process_nerves_only] chain_of_action: {chain_of_action}")
+                
+                # 检查动作可执行性
+                if_action_can_execute = self.nerves_checker.check(
+                    chain_of_action, domain, nerves_start_env
+                )
+                print(f"[DEBUG _process_nerves_only] if_action_can_execute: {if_action_can_execute}")
+                
+                # 验证所有动作可达
+                for i, (reachable, state) in enumerate(if_action_can_execute):
+                    if not reachable:
+                        raise ValueError(f"动作 {chain_of_action[i]} 不可达")
+                
+                # 执行原子动作
+                execution_trace = []
+                for i, action in enumerate(chain_of_action):
+                    # 执行动作
+                    exec_result = self.executor.execute(action)
+                    execution_trace.append({
+                        "step": i,
+                        "action": action,
+                        "result": exec_result.success,
+                        "message": exec_result.message,
+                        "add_facts": exec_result.add_facts,
+                        "del_facts": exec_result.del_facts,
+                    })
+                    print(f"[DEBUG _process_nerves_only] 执行动作 {i}: {action}, 结果: {exec_result.success}")
+                
+                # 构建Nerves层数据
+                nerves_layer_data = {
+                    "task": user_task,
+                    "task_index": 0,
+                    "start_env": list(nerves_start_env),
+                    "chain_of_action": chain_of_action,
+                    "action_reachability": [
+                        {"reachable": reachable, "state": state}
+                        for reachable, state in if_action_can_execute
+                    ],
+                    "execution_trace": execution_trace,
+                    "success": True,
+                }
+                
+                cot_data["nerves_layers"].append(nerves_layer_data)
+                cot_data["execution_trace"].extend(execution_trace)
+                cot_data["success"] = True
+                print(f"[DEBUG _process_nerves_only] 成功生成CoT数据，步骤数: {len(execution_trace)}")
+                
+                return cot_data
+                
+            except Exception as e:
+                print(f"[DEBUG _process_nerves_only] 异常捕获: {e}")
+                self.nerves_false_times += 1
+                cot_data["error_messages"].append(f"Nerves层失败 {self.nerves_false_times}: {str(e)}")
+                if self.nerves_false_times >= self.nerves_false_limit:
+                    cot_data["error_messages"].append("Nerves层重试次数超限，任务失败")
+                    print(f"[DEBUG _process_nerves_only] 重试次数超限，任务失败")
+                    break
+                # 准备重试（简化：继续循环）
+                continue
+        
+        return cot_data
     
     def _process_brain_nerves(self, user_task: str) -> Dict[str, Any]:
         """

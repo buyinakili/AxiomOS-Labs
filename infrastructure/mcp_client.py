@@ -2,7 +2,7 @@
 """
 MCP 客户端实现
 
-用于连接 mcp_server_structured.py，执行工具调用，并解析返回的结构化结果。
+用于连接 infrastructure/mcp_server.py，执行工具调用，并解析返回的结构化结果。
 """
 
 import asyncio
@@ -73,7 +73,7 @@ class MCPClient:
         
         Args:
             server_command: 服务器命令 (如 "python3")
-            server_args: 服务器参数 (如 ["mcp_server_structured.py"])
+            server_args: 服务器参数 (如 ["infrastructure/mcp_server.py"])
             server_env: 服务器环境变量
             connection_timeout: 连接超时时间（秒）
             session_init_timeout: 会话初始化超时（秒）

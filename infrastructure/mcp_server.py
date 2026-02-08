@@ -44,6 +44,14 @@ def load_mcp_skills():
     
     返回技能实例列表
     """
+    # 确保项目根目录在Python路径中，避免工作目录切换导致的导入错误
+    import sys
+    # 计算项目根目录：mcp_server.py在infrastructure/目录下，所以需要上两层到项目根目录
+    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    if project_root not in sys.path:
+        sys.path.insert(0, project_root)
+        logger.debug(f"添加项目根目录到sys.path: {project_root}")
+    
     skills = []
     skill_module = "infrastructure.mcp_skills"
     
@@ -52,7 +60,7 @@ def load_mcp_skills():
     
     # 1. 核心技能目录
     current_dir = os.path.dirname(os.path.abspath(__file__))
-    core_skill_dir = os.path.join(current_dir, "infrastructure", "mcp_skills")
+    core_skill_dir = os.path.join(current_dir, "mcp_skills")
     skill_dirs.append(("core", core_skill_dir))
     
     # 2. 沙盒技能目录（通过环境变量）

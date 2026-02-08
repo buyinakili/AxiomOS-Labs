@@ -1,0 +1,16 @@
+[
+    "扫描当前文件夹",
+    "创建一个名为test的文件夹",
+    "在test文件夹中创建README.md文件",
+    "将README.md文件重命名为README.txt",
+    "复制README.txt到backup文件夹",
+    "删除test文件夹",
+    "压缩backup文件夹中的所有文件",
+    "解压archive.zip文件到extracted文件夹",
+    "获取管理员权限",
+    "连接两个文件夹",
+    "扫描workspace文件夹并创建备份",
+    "先创建项目结构，然后备份重要文件",
+    "如果文件存在则移动它，否则创建新文件",
+    "除了txt文件外，移动所有文件到archive文件夹"
+]

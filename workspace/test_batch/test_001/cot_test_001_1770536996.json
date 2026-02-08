@@ -1,0 +1,17 @@
+{
+  "mission_id": "d25bd76a-9e68-402c-8baa-78c093eb5b6b",
+  "mission": "扫描workspace文件夹",
+  "domain": "file-manager-extended",
+  "Brain": [],
+  "Nerves": [
+    {
+      "Task": "扫描workspace文件夹",
+      "Env": "(at main_py root) (is_created root) (connected root workspace) (connected root backup) (connected root docs) (has_name readme README_dot_md) (is_empty docs) (at config root) (is_empty backup) (is_created workspace) (has_admin_rights) (at readme root) (has_name main_py main_dot_py) (has_name file1 test_file) (at file1 root) (has_name config config_dot_json)",
+      "ChainOfAction": [
+        "(scan root)"
+      ]
+    }
+  ],
+  "BrainError": [],
+  "NervesError": []
+}

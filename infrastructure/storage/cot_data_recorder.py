@@ -326,10 +326,12 @@ class BatchCoTDataRecorder:
             raise ValueError(f"任务 {task_id} 不存在")
         
         recorder = self.recorders[task_id]
+        
+        # 在保存和重置之前收集统计信息
+        stats = recorder.get_statistics()
         filepath = recorder.save_and_reset(filename)
         
         # 记录完成的任务
-        stats = recorder.get_statistics()
         self.completed_tasks.append({
             "task_id": task_id,
             "mission": stats.get("mission", ""),

@@ -157,7 +157,11 @@ class CoTDataGeneratorWithRecorder(BaseCoTDataGenerator):
             
             # 记录Brain层成功步骤
             if chain_of_mission and mission_reachability:
-                for i, (reachable, predicted_state) in enumerate(mission_reachability):
+                for i, reachability_item in enumerate(mission_reachability):
+                    # 处理字典格式 {"reachable": bool, "state": List[str]}
+                    reachable = reachability_item.get("reachable", False)
+                    predicted_state = reachability_item.get("state", [])
+                    
                     if reachable:
                         env_str = self._format_env(predicted_state if i > 0 else start_env)
                         self.recorder.record_brain_success(
@@ -175,7 +179,11 @@ class CoTDataGeneratorWithRecorder(BaseCoTDataGenerator):
                 action_reachability = nerves_layer.get("action_reachability", [])
                 
                 if chain_of_action and action_reachability:
-                    for i, (reachable, predicted_state) in enumerate(action_reachability):
+                    for i, reachability_item in enumerate(action_reachability):
+                        # 处理字典格式 {"reachable": bool, "state": List[str]}
+                        reachable = reachability_item.get("reachable", False)
+                        predicted_state = reachability_item.get("state", [])
+                        
                         if reachable:
                             env_str = self._format_env(predicted_state if i > 0 else start_env)
                             self.recorder.record_nerves_success(

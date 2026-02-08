@@ -4,39 +4,39 @@
     "completed_tasks": 3,
     "successful_tasks": 3,
     "failed_tasks": 0,
-    "total_steps": 0,
+    "total_steps": 3,
     "total_errors": 0,
-    "start_time": "2026-02-08T13:26:24.857069",
-    "end_time": "2026-02-08T13:26:25.350050"
+    "start_time": "2026-02-08T15:49:56.281044",
+    "end_time": "2026-02-08T15:49:57.000921"
   },
   "batch_summary": {
     "total_tasks": 3,
     "completed_tasks": 3,
     "active_tasks": 0,
-    "total_steps": 0,
+    "total_steps": 3,
     "total_errors": 0,
-    "success_rate": 100
+    "success_rate": 100.0
   },
   "results_summary": [
     {
       "task_id": "test_001",
       "success": true,
       "mission": "扫描workspace文件夹",
-      "filepath": "/home/nakili/projects/AxiomLabs/workspace/test_batch/test_001/cot_test_001_1770528385.json"
+      "filepath": "/home/nakili/projects/AxiomLabs/workspace/test_batch/test_001/cot_test_001_1770536996.json"
     },
     {
       "task_id": "test_002",
       "success": true,
       "mission": "创建test文件夹",
-      "filepath": "/home/nakili/projects/AxiomLabs/workspace/test_batch/test_002/cot_test_002_1770528385.json"
+      "filepath": "/home/nakili/projects/AxiomLabs/workspace/test_batch/test_002/cot_test_002_1770536996.json"
     },
     {
       "task_id": "test_003",
       "success": true,
       "mission": "移动文件到backup",
-      "filepath": "/home/nakili/projects/AxiomLabs/workspace/test_batch/test_003/cot_test_003_1770528385.json"
+      "filepath": "/home/nakili/projects/AxiomLabs/workspace/test_batch/test_003/cot_test_003_1770536997.json"
     }
   ],
   "output_dir": "/home/nakili/projects/AxiomLabs/workspace/test_batch",
-  "generated_at": "2026-02-08T13:26:25.350085"
+  "generated_at": "2026-02-08T15:49:57.000964"
 }

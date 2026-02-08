@@ -1,6 +1,6 @@
 {
-  "mission_id": "91317c9b-e9a7-4b8f-8599-f747e8159424",
-  "mission": "移动文件到backup",
+  "mission_id": "19d6840c-1d98-45e8-a295-98bfaedf1c7d",
+  "mission": "扫描root文件夹",
   "domain": "file-manager-extended",
   "Brain": [],
   "Nerves": [],

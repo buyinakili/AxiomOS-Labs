@@ -66,8 +66,8 @@ class Constants:
     
     # MCP服务器配置
     DEFAULT_MCP_SERVER_COMMAND = "python3"
-    DEFAULT_MCP_SERVER_SCRIPT = "mcp_server_structured.py"
-    DEFAULT_MCP_SERVER_ARGS = "mcp_server_structured.py"
+    DEFAULT_MCP_SERVER_SCRIPT = "infrastructure/mcp_server.py"
+    DEFAULT_MCP_SERVER_ARGS = "infrastructure/mcp_server.py"
     
     # MCP超时配置（秒）
     MCP_CONNECTION_TIMEOUT = 5.0

@@ -42,7 +42,7 @@ class MCPActionExecutorRefactored(IExecutor):
         
         self.execution_history: List[str] = []
         self.server_command = server_command
-        self.server_args = server_args or ["mcp_server_structured.py"]  # 使用标准版服务器
+        self.server_args = server_args or ["infrastructure/mcp_server.py"]  # 使用标准版服务器
         # 保存当前环境变量，用于传递给MCP服务器子进程
         self.server_env = os.environ.copy()
         self.client = SimpleMCPClient(

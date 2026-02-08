@@ -36,7 +36,7 @@ class AxiomLabsFactory:
     @staticmethod
     def create_executor(config: Settings) -> MCPActionExecutor:
         """创建执行器"""
-        server_args = config.mcp_server_args.strip().split() if config.mcp_server_args.strip() else ["mcp_server_structured.py"]
+        server_args = config.mcp_server_args.strip().split() if config.mcp_server_args.strip() else ["infrastructure/mcp_server.py"]
         return MCPActionExecutor(
             storage_path=config.storage_path,
             server_command=config.mcp_server_command,

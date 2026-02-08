@@ -1,0 +1,13 @@
+{
+  "mission": "创建test文件夹",
+  "domain": "file-manager-extended",
+  "steps": [
+    {
+      "task": "创建test文件夹",
+      "env": "(at main_py root) (is_created root) (connected root workspace) (connected root backup) (connected root docs) (has_name readme README_dot_md) (is_empty docs) (at config root) (is_empty backup) (is_created workspace) (has_admin_rights) (at readme root) (has_name main_py main_dot_py) (has_name file1 test_file) (at file1 root) (has_name config config_dot_json)",
+      "chain_of_action": [
+        "(scan root)"
+      ]
+    }
+  ]
+}

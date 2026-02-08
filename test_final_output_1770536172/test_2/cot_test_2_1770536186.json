@@ -1,6 +1,6 @@
 {
-  "mission_id": "2eb52291-3484-4fcc-bdb1-e4434d0f236b",
-  "mission": "扫描workspace文件夹",
+  "mission_id": "61e3c690-66fc-46a5-85f1-9d761b09ef38",
+  "mission": "创建test文件夹",
   "domain": "file-manager-extended",
   "Brain": [],
   "Nerves": [],

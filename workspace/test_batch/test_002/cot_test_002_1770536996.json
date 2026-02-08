@@ -1,0 +1,17 @@
+{
+  "mission_id": "9fcfbf3a-0986-4ef9-a8b6-6049f705b2ec",
+  "mission": "创建test文件夹",
+  "domain": "file-manager-extended",
+  "Brain": [],
+  "Nerves": [
+    {
+      "Task": "创建test文件夹",
+      "Env": "(at main_py root) (is_created root) (connected root workspace) (connected root backup) (connected root docs) (has_name readme README_dot_md) (is_empty docs) (at config root) (is_empty backup) (is_created workspace) (has_admin_rights) (at readme root) (has_name main_py main_dot_py) (has_name file1 test_file) (at file1 root) (has_name config config_dot_json)",
+      "ChainOfAction": [
+        "(scan root)"
+      ]
+    }
+  ],
+  "BrainError": [],
+  "NervesError": []
+}

@@ -1,0 +1,17 @@
+{
+  "mission_id": "f6be18e3-d49d-4aa1-8b3a-f8de693205cd",
+  "mission": "扫描root文件夹",
+  "domain": "file-manager-extended",
+  "Brain": [],
+  "Nerves": [
+    {
+      "Task": "扫描root文件夹",
+      "Env": "(at file1 root) (connected root backup)",
+      "ChainOfAction": [
+        "(scan root)"
+      ]
+    }
+  ],
+  "BrainError": [],
+  "NervesError": []
+}

@@ -17,14 +17,14 @@ class HypothalamusFilter:
         "get_admin", "connect_folders", "remove"
     ]
     
-    # 逻辑复杂度关键词（中文）
-    LOGIC_KEYWORDS = ["如果", "所有", "除了", "且", "或", "当...时", "并且", "或者", "除非"]
+    # 逻辑复杂度关键词（中文）- 真正的逻辑连接词
+    LOGIC_KEYWORDS = ["如果", "且", "或", "当...时", "并且", "或者", "除非", "则", "否则", "那么"]
     
-    # 实体确定性模糊代词/通配符
-    FUZZY_PRONOUNS = ["那个", "一些", "相关", "*", "所有", "某些", "任意", "每个"]
+    # 实体确定性模糊代词/通配符 - 移除"所有"，因为它不是模糊代词
+    FUZZY_PRONOUNS = ["那个", "一些", "相关", "*", "某些", "任意", "每个", "它", "它们", "这个", "这些"]
     
-    # 语义复杂度阈值（简单实现：单词数量）
-    SEMANTIC_COMPLEXITY_THRESHOLD = 10  # 单词数超过此值认为复杂
+    # 语义复杂度阈值（基于字符数，中文任务通常字符较少）
+    SEMANTIC_COMPLEXITY_THRESHOLD = 25  # 字符数超过此值认为复杂，提高阈值避免过度路由到Brain
     
     def filter(self, task: str) -> str:
         """
@@ -55,24 +55,14 @@ class HypothalamusFilter:
     
     def _extract_verb(self, task: str) -> str:
         """
-        提取任务中的主要动词（简化实现）
+        提取任务中的主要动词（改进版，支持中文动词提取，避免从文件名中提取）
         
         :param task: 任务描述
         :return: 动词小写形式，如果未识别则返回空字符串
         """
-        # 简单分词，取第一个单词作为动词（英文场景）
-        words = task.strip().split()
-        if not words:
-            return ""
+        task_lower = task.lower()
         
-        # 如果是中文，尝试提取动词（这里简化处理）
-        # 实际应使用更复杂的NLP，此处仅作示例
-        first_word = words[0].lower()
-        
-        # 移除标点
-        first_word = re.sub(r'[^\w]', '', first_word)
-        
-        # 映射常见中文动词到英文白名单
+        # 扩展的中文动词到英文白名单映射
         chinese_to_english = {
             "移动": "move",
             "删除": "delete",
@@ -83,24 +73,70 @@ class HypothalamusFilter:
             "扫描": "scan",
             "压缩": "compress",
             "解压": "uncompress",
+            "创建": "create_file",  # 匹配"创建文件"或"创建文件夹"
             "创建文件": "create_file",
             "创建文件夹": "create_folder",
+            "获取": "get_admin",
             "获取权限": "get_admin",
+            "连接": "connect_folders",
             "连接文件夹": "connect_folders",
             "移除": "remove",
+            "建立": "create_folder",
+            "新建": "create_file",
+            "制作": "create_file",
+            "备份": "copy",
+            "转移": "move",
+            "搬运": "move",
+            "拷贝": "copy",
+            "剪切": "move",
+            "改名": "rename",
+            "命名": "rename",
+            "查看": "read",
+            "检查": "scan",
+            "搜寻": "scan",
+            "查找": "scan",
+            "打包": "compress",
+            "解包": "uncompress",
+            "解压缩": "uncompress",
+            "归档": "compress",
         }
         
-        if first_word in chinese_to_english:
-            return chinese_to_english[first_word]
+        # 首先检查中文动词映射（按长度从长到短匹配，避免部分匹配）
+        # 优先匹配更具体的动词
+        sorted_keys = sorted(chinese_to_english.keys(), key=len, reverse=True)
+        for chinese_verb in sorted_keys:
+            if chinese_verb in task:
+                # 检查是否在常见的文件名模式中（如README.md）
+                # 如果是"read"但出现在文件名中，跳过
+                if chinese_verb == "读取" or chinese_verb == "查看":
+                    # 检查是否在文件名上下文中
+                    if "readme" in task_lower or ".md" in task_lower or ".txt" in task_lower:
+                        continue  # 可能是文件名的一部分，不是动词
+                return chinese_to_english[chinese_verb]
         
-        # 检查是否直接是白名单中的英文动词
-        if first_word in self.NERVES_ACTION_WHITELIST:
-            return first_word
-        
-        # 尝试匹配任务中的动词模式
+        # 然后检查整个任务中是否包含白名单中的英文动词
+        # 但排除可能出现在文件名中的动词（如"read"在"README"中）
         for verb in self.NERVES_ACTION_WHITELIST:
-            if verb in task.lower():
-                return verb
+            if verb in task_lower:
+                # 特殊处理：如果verb是"read"但出现在"README"中，跳过
+                if verb == "read" and "readme" in task_lower:
+                    continue
+                # 检查动词是否在任务的开头部分（更可能是真正的动词）
+                # 简单的启发式：动词出现在前1/3部分
+                verb_pos = task_lower.find(verb)
+                if verb_pos >= 0 and verb_pos < len(task) * 0.3:
+                    return verb
+        
+        # 最后尝试提取第一个中文词（2-4个字符）
+        # 中文任务通常以动词开头，取前2-4个字符作为候选
+        task_stripped = task.strip()
+        if len(task_stripped) >= 2:
+            # 尝试2-4个字符的滑动窗口
+            for length in range(4, 1, -1):
+                if len(task_stripped) >= length:
+                    candidate = task_stripped[:length]
+                    if candidate in chinese_to_english:
+                        return chinese_to_english[candidate]
         
         return ""
     
@@ -120,14 +156,25 @@ class HypothalamusFilter:
     
     def _calculate_semantic_complexity(self, task: str) -> int:
         """
-        计算语义复杂度（简化：单词数量）
+        计算语义复杂度（基于字符数和分隔符）
         
         :param task: 任务描述
-        :return: 复杂度分数
+        :return: 复杂度分数（字符数）
         """
-        # 简单实现：按空格分割单词数
-        words = task.strip().split()
-        return len(words)
+        # 移除多余空格
+        task = task.strip()
+        
+        # 计算字符数（中文字符每个算1，英文字母和数字每个算0.5）
+        # 简单实现：直接返回字符数
+        complexity = len(task)
+        
+        # 如果有多个逗号、分号或"然后"等连接词，增加复杂度
+        connectors = ["，", "；", ",", ";", "然后", "接着", "之后", "并且", "而且"]
+        for connector in connectors:
+            if connector in task:
+                complexity += 5  # 每个连接词增加复杂度
+        
+        return complexity
     
     def is_nerves_action(self, verb: str) -> bool:
         """检查动词是否在Nerves白名单中"""

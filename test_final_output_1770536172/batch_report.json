@@ -1,0 +1,36 @@
+{
+  "stats": {
+    "total_tasks": 2,
+    "completed_tasks": 2,
+    "successful_tasks": 2,
+    "failed_tasks": 0,
+    "total_steps": 0,
+    "total_errors": 0,
+    "start_time": "2026-02-08T15:36:12.597987",
+    "end_time": "2026-02-08T15:36:26.122132"
+  },
+  "batch_summary": {
+    "total_tasks": 2,
+    "completed_tasks": 2,
+    "active_tasks": 0,
+    "total_steps": 0,
+    "total_errors": 0,
+    "success_rate": 100
+  },
+  "results_summary": [
+    {
+      "task_id": "test_1",
+      "success": true,
+      "mission": "扫描root文件夹",
+      "filepath": "./test_final_output_1770536172/test_1/cot_test_1_1770536174.json"
+    },
+    {
+      "task_id": "test_2",
+      "success": true,
+      "mission": "创建test文件夹",
+      "filepath": "./test_final_output_1770536172/test_2/cot_test_2_1770536186.json"
+    }
+  ],
+  "output_dir": "./test_final_output_1770536172",
+  "generated_at": "2026-02-08T15:36:26.122162"
+}

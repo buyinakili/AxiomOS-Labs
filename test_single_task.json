@@ -1,0 +1,7 @@
+[
+    {
+        "task_id": "test_001",
+        "mission": "扫描workspace文件夹",
+        "domain": "file-manager-extended"
+    }
+]

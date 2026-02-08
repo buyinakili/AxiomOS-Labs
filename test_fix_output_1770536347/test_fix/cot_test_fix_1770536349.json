@@ -1,0 +1,24 @@
+{
+  "mission_id": "717042d7-60d0-4927-8d71-72786ff1a5c4",
+  "mission": "扫描root文件夹",
+  "domain": "file-manager-extended",
+  "Brain": [],
+  "Nerves": [
+    {
+      "Task": "扫描root文件夹",
+      "Env": "(is_created root) (has_name file1 test_file) (has_admin_rights) (at config root) (connected root workspace) (is_created workspace) (has_name config config_dot_json) (at readme root) (has_name readme README_dot_md) (is_empty backup) (at main_py root) (is_empty docs) (at file1 root) (connected root docs) (has_name main_py main_dot_py) (connected root backup)",
+      "ChainOfAction": [
+        "(get_admin)"
+      ]
+    },
+    {
+      "Task": "扫描root文件夹",
+      "Env": "(at config root) (at file1 root) (at main_py root) (at readme root) (connected root backup) (connected root docs) (connected root workspace) (has_admin_rights) (has_name config config_dot_json) (has_name file1 test_file) (has_name main_py main_dot_py) (has_name readme README_dot_md) (is_created root) (is_created workspace) (is_empty backup) (is_empty docs) (scanned root)",
+      "ChainOfAction": [
+        "(scan root)"
+      ]
+    }
+  ],
+  "BrainError": [],
+  "NervesError": []
+}

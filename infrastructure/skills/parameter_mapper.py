@@ -313,13 +313,20 @@ def map_action_to_arguments(action_str: str) -> Tuple[str, Dict[str, Any]]:
     将动作字符串映射到工具名称和参数字典
     
     Args:
-        action_str: 动作字符串（如 "move file_a folder_x folder_y"）
+        action_str: 动作字符串（如 "move file_a folder_x folder_y" 或 "(scan workspace)"）
         
     Returns:
         (工具名称, 参数字典)
     """
+    # 处理PDDL格式的动作（如 "(scan workspace)"）
+    action_str = action_str.strip()
+    
+    # 如果以括号开头和结尾，移除它们
+    if action_str.startswith("(") and action_str.endswith(")"):
+        action_str = action_str[1:-1].strip()
+    
     # 解析动作字符串
-    parts = action_str.strip().split()
+    parts = action_str.split()
     if not parts:
         raise ValueError("动作字符串为空")
     
